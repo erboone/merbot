@@ -1,5 +1,5 @@
-from expdb_classes import MerscopeDirectory, Expiriment, Run, DB_ENGINE
-from expdb_manager import initialize_expiriment_db
+from expdb_classes import MerscopeDirectory, Experiment, Run, DB_ENGINE
+from expdb_manager import initialize_experiment_db
 import merfish_pipeline_helpers as hlpr
 
 import os
@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 
-# Run an expiriment
+# Run an experiment
 def _check_path(path:Path, return_detail:bool=False) -> bool:
     exists=False; read=False; write=False; 
     if os.access(path, os.F_OK): exists = True
@@ -27,22 +27,22 @@ def _check_path(path:Path, return_detail:bool=False) -> bool:
     # raise RuntimeError(f"Attempted to create \"{path}\" but failed. Check that you have permission.")
 
 # def run pipeline
-# in: expiriment(name)
+# in: experiment(name)
 # does:
     # checks existance of config file
         # if not exists create
 def run_pipeline(
-    exp:Expiriment, 
+    exp:Experiment, 
     mast_conf_path:str = hlpr.CONFIG_PATH, 
-    target:str='all',
+    target:str='full_pipeline',
     cores:int=8):
     # TODO: make a custom template and/or chance to sphinx autodoc format
-    """Main command to run a pipeline on an expiriment that has been logged in 
-    the expiriment database. Includes options to specify alternative config 
+    """Main command to run a pipeline on an experiment that has been logged in 
+    the experiment database. Includes options to specify alternative config 
     file path and snakemake pipeline target name.
 
     Args:
-        exp (Expiriment): Expiriment to run (object retreived from database)
+        exp (Experiment): Experiment to run (object retreived from database)
     
     Optional:
         conf_path (str): . Defaults to hlpr.CONFIG_PATH.
@@ -51,17 +51,26 @@ def run_pipeline(
     """
 
     mast_conf = hlpr.load_config(mast_conf_path)['Master']
-    conf = setup(exp, mast_conf)
+    conf_path = setup(exp, mast_conf)
     if not (target == 'all'): target = conf['IO Options'][target]
+    env_setup_command = f"""
+    sm_expname = '{exp.name}'
+    sm_conpath = '{conf_path}'
+    """
+
     # TODO: add nohup to this command
-    shell_command = f"""Snakemake 
-                    --cores {cores} 
-                    {target}"""
-    print(shell_command)
+    snakemake_command = f"""\
+    Snakemake {target}
+    --cores {cores} 
+    \
+    """
+    print(env_setup_command)
+    print(snakemake_command)
+
     # subprocess.run(shell_command)
 
 
-def setup(exp:Expiriment, mast_conf:ConfigParser):
+def setup(exp:Experiment, mast_conf:ConfigParser) -> str:
     if exp.nname is not None:
         name = exp.nname
     else: name = exp.name
@@ -78,8 +87,10 @@ def setup(exp:Expiriment, mast_conf:ConfigParser):
     # check and create config file
     CONFIG_COPY_PATH = Path(ANAPRE_DIR_PATH, f'config.{name}.ini')
     conf_ex, conf_r, conf_w = _check_path(CONFIG_COPY_PATH, return_detail=True)
+    print("reached1", CONFIG_COPY_PATH)
 
     if not conf_ex:
+        print("reached2")
         if not (conf_r and conf_w):
             raise RuntimeError(f"You do not have read/write permissions for \"{CONFIG_COPY_PATH}\"")
         # create config file
@@ -91,15 +102,15 @@ def setup(exp:Expiriment, mast_conf:ConfigParser):
             raise RuntimeError(f"You do not have read/write permissions for \"{CONFIG_COPY_PATH}\"")
         conf_copy = hlpr.load_config(CONFIG_COPY_PATH)
     
-    return conf_copy
+    return CONFIG_COPY_PATH
 
-# DOWN HERE: select which expiriments to run
+# DOWN HERE: select which experiments to run
 
 
 if __name__ == "__main__":
-    initialize_expiriment_db()
+    initialize_experiment_db()
     session = Session(DB_ENGINE)
-    test = Expiriment.getallfromDB(session)[0]
+    test = Experiment.getallfromDB(session)[0]
     conf = hlpr.load_config()['Master']
 
     run_pipeline(test)

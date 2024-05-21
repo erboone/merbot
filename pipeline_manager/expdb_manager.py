@@ -13,10 +13,10 @@ import os
 from pathlib import Path
 
 from typing import List
-from expdb_classes import MerscopeDirectory, Experiment, Run, Base
+from .expdb_classes import MerscopeDirectory, Experiment, Run, Base
 
 import json
-from pipeline_manager import MASTER_CONFIG, SESSION, DB_ENGINE
+from . import MASTER_CONFIG, SESSION, DB_ENGINE
 
 #=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-
 # create the database using ORM schema defined in "expdb_classes"
@@ -45,16 +45,14 @@ def _initialize_merscope_dirs():
     """
     conf_msdir_paths = json.loads(MASTER_CONFIG.get("Master", "merscope_dirs"))
     
-    db_msdir_objs: List[MerscopeDirectory] = MerscopeDirectory.getallfromDB(SESSION)
+    db_msdir_objs: List[MerscopeDirectory] = MerscopeDirectory.getallfromDB()
     db_msdir_paths: list[str] = [dmo.root for dmo in db_msdir_objs]
-    print(db_msdir_paths)
 
     for ms_path in conf_msdir_paths:
         if ms_path in db_msdir_paths:
             continue
         else:
             raw_path, out_path = _get_merscope_subdirs(ms_path)
-            print(ms_path, raw_path, out_path)
             
             new_msdir = MerscopeDirectory(
                 root=ms_path,
@@ -71,7 +69,7 @@ def _initialize_experiments():
     Checks all MERSCOPE directories for new experiments, adds them to the DB
     """
     # Access database loads all MERSCOPE Directory objects into a list
-    db_msdir_objs: List[MerscopeDirectory] = MerscopeDirectory.getallfromDB(SESSION)
+    db_msdir_objs: List[MerscopeDirectory] = MerscopeDirectory.getallfromDB()
 
     for ms_obj in db_msdir_objs:
         db_expir_names = [e.name for e in ms_obj.experiments]

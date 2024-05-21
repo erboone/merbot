@@ -12,7 +12,7 @@
 
 # Database access
 from sqlalchemy import select, update
-from pipeline_manager import MASTER_CONFIG, SESSION, DB_ENGINE
+from . import MASTER_CONFIG, SESSION, DB_ENGINE
 
 # Object declarations
 import os, copy
@@ -26,7 +26,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 # -----------------------------------------------------------------------------
 # open config file to build engine URL and connect
-
+print(os.getcwd())
 CONFIG_PATH = "config.master.ini"
 master_config = MASTER_CONFIG['Master']
 io_config = MASTER_CONFIG['IO Options']
@@ -96,11 +96,12 @@ class Experiment(Base):
         if incl_original and incl_backups:
             db_objs: List[cls] = SESSION.scalars(select(cls)).all()
 
-        # Get either nonredundant or re
+        # Get either just nonbackups or just backups  
+        # TODO: while I think this is robust, the logic is strange, make sure this is tested well.
         elif incl_original or incl_backups:
             stmt = select(cls).where(
-                    cls.backup == (incl_original) or 
-                    cls.backup == (not incl_backups)
+                    cls.backup == (not incl_original) or 
+                    cls.backup == (incl_backups)
                 )
             db_objs: List[Experiment] = SESSION.scalars(stmt).all()
 
@@ -161,6 +162,8 @@ class Run(Base):
     exp_name: Mapped[str] = mapped_column('experiment', String(128), ForeignKey("experiments.name"))
     parent_experiment = relationship("Experiment")
 
+    init_dt: Mapped[str] = mapped_column('init_dt', DateTime, nullable=False, default=datetime.now())
+
     checkpoints: Mapped[int] = relationship("Checkpoint", back_populates="parent_run",
                                             cascade="all, delete-orphan")
 
@@ -177,86 +180,3 @@ class Checkpoint(Base):
     complete: Mapped[bool] = mapped_column('complete', Boolean, nullable=False, default=False)
 
     # TODO: add relation with before and after checkpoint to automatically create a graph
-
-
-
-# class Checkpoint(Base):
-#     __tablename__ = "checkpoints" 
-
-#     id: Mapped[int] = mapped_column('run_id', Integer, nullable=False, primary_key=True, autoincrement=True)
-#     run_id: Mapped[int] = r
-
-# TODO: scrap this for parts
-# class OldMerscopeDirectory:
-
-#     def __init__(self, root_dir:str=None, json:dict=None) -> None:
-#         self.root = root_dir
-#         self.date_added = datetime.now()
-#         self.subdir = self._merscope_subdirs(self.root)
-#         self.all_exp = self._find_all_experiments()
-#         self.incomplete_exp = []
-#         self.complete_exp = []
-    
-#     @classmethod
-#     def from_json(cls, mdir_json:dict):
-#         new_ms_dir = cls(root_dir=mdir_json["root"])
-#         new_ms_dir.date_added = datetime.fromisoformat(mdir_json["date_added"])
-#         new_ms_dir.subdir = mdir_json["subdir"]
-#         new_ms_dir.all_exp = new_ms_dir._find_all_experiments()
-#         new_ms_dir.incomplete_exp = [MerfishExperiment.from_json(exp_json) 
-#                                         for exp_json in mdir_json["incomplete_exp"].values()]
-#         new_ms_dir.complete_exp = [MerfishExperiment.from_json(exp_json) 
-#                                         for exp_json in mdir_json["complete_exp"].values()]
-#         new_ms_dir._initialize_experiments()
-#         return new_ms_dir
-
-#     def __str__(self):
-#         incomp_exp = "".join([f"\t{str(exp)}\n" for exp in self.incomplete_exp])
-#         comp_exp = "".join([f"\t{str(exp)}\n" for exp in self.complete_exp])
-#         class_info = "MERSCOPE Dir: %s\nDate added to log: %s\nIncomplete experiments:\n%sComplete experiments:\n%s" % (self.root, self.date_added, incomp_exp, comp_exp)
-#         return class_info
-#         # TODO: Write __str__ for Experiment object and list below {class info}
-
-#     def to_dict(self):
-#         md_dict = {
-#             "root": self.root,
-#             "date_added": self.date_added.isoformat(),
-#             "subdir": self.subdir,
-#             "all_exp": self.all_exp,
-#             "incomplete_exp": {expir.name: expir.to_dict() for expir in self.incomplete_exp},
-#             "complete_exp": {expir.name: expir.to_dict() for expir in self.complete_exp}
-#         }
-#         return md_dict
-
-#     def _merscope_subdirs(self, path:str):
-#         req_subdirs = ['data', 'output']
-#         subdir = os.listdir(path)
-#         output_subdir = {req_sd:[sdir for sdir in subdir if req_sd in sdir] for req_sd in req_subdirs}
-
-#         for req_sd, found_sd in output_subdir.items():
-#             if len(found_sd) < 1:
-#                 raise RuntimeError(
-#                     f"""No \"{req_sd}\" directory found at path \"{path}\", either:
-#                         1. rearrange the MERSCOPE directory to match schema found in README
-#                         2. remove \"{path}\" from config.master.ini[Master][merscope_dirs] """)
-#             elif len(found_sd) > 1:
-#                 raise RuntimeError(
-#                     f"""Found more than one \"{req_sd}\" directory at \"{path}\", either:
-#                         1. rearrange the MERSCOPE directory to match schema found in README
-#                         2. remove \"{path}\" from config.master.ini[Master][merscope_dirs] """)
-            
-#         return {req_sd: found_sd[0] for req_sd, found_sd in output_subdir.items()}
-    
-#     def _find_all_experiments(self):
-#         experiments = os.listdir('/'.join([self.root, self.subdir['output']]))
-#         return experiments
-    
-#     def _initialize_experiments(self, done:bool=False):
-#         complete_exp_names = [exp.name for exp in self.complete_exp]
-#         for exp in self.all_exp:
-#             if exp not in complete_exp_names:
-#                 if done:
-#                     self.complete_exp.append(MerfishExperiment(name=exp, ms_path=self.root))
-#                 else:
-#                     self.incomplete_exp.append(MerfishExperiment(name=exp, ms_path=self.root))
-

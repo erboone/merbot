@@ -11,20 +11,17 @@ import sys
 import os
 from pathlib import Path
 from datetime import datetime 
-import configparser
-from pipeline_manager import SESSION
-from pipeline_manager import RUN
-
+from configparser import ConfigParser
 
 # -----------------------------------------------------------------------------
 # Load config file
+EXP_NAME = os.environ["sm_expname"]
 CONFIG_FILE = os.environ["sm_conpath"]
-config = hlpr.load_config(CONFIG_FILE)
-targets = config["IO Options"]
+config = ConfigParser()
+with open(CONFIG_FILE, "r") as conf_file_conn:
+    config.read_file(conf_file_conn)
 
-# -----------------------------------------------------------------------------
-# Create run table entry
-RUN = 
+targets = config["IO Options"]
 
 # Define targets --------------------------------------------------------------
 end_targets = ['cell_by_gene_tab']
@@ -37,14 +34,23 @@ rule full_pipeline:
     input:
         end_targets
     output:
-        f"{runid}.{expname}.log"
+        "complete.txt"
+    shell:
+        "echo 'finished' > {output}"
 
-
-rule cbgt:        
+rule Cell_Segmentation:        
     input:
         barcodes=targets['barcodes'],
         img_folder=targets['img_folder']
     output:
         cbgt=targets['cell_by_gene_tab']
-    notebook:
+    shell:
+        """
+        echo {input.barcodes}
+        echo {input.img_folder}
+        echo {output.cbgt}
+        echo "THis works! Run {RUN.id}" > test.txt
+        """
+    
+    # notebook:
         "1_Cell_Segmentation.ipynb"

@@ -52,5 +52,3 @@ rule Cell_Segmentation:
         echo "THis works! Run {RUN.id}" > test.txt
         """
     
-    # notebook:
-        "1_Cell_Segmentation.ipynb"

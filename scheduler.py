@@ -102,8 +102,11 @@ def setup(exp:Experiment, mast_conf:ConfigParser) -> str:
 
 
 if __name__ == "__main__":
-    initialize_experiment_db()
-    test = Experiment.getallfromDB(SESSION)[0]
-    conf = load_config()['Master']
+    # initialize_experiment_db()
+    # test = Experiment.getallfromDB(SESSION)[0]
+    # conf = load_config()['Master']
 
-    run_pipeline(test)
+    # run_pipeline(test)
+    from pipeline_manager.generate_sm import *
+
+    write_snakefile()

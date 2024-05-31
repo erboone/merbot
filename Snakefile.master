@@ -38,12 +38,15 @@ rule full_pipeline:
     shell:
         "echo 'finished' > {output}"
 
-rule Cell_Segmentation:        
+rule Cell_Segmentation:
     input:
-        barcodes=targets['barcodes'],
-        img_folder=targets['img_folder']
+        {barcodes}
+        {img_folder}
     output:
-        cbgt=targets['cell_by_gene_tab']
+        {cell_by_gene_tab}
+    log: 
+        {stdoutt}
+        {stderr}
     shell:
         """
         echo {input.barcodes}

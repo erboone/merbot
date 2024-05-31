@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 CONFIG_PATH = "config.master.ini"
 
+# Error messages
+
 def load_config(config_file:str=CONFIG_PATH) -> ConfigParser:
     config = ConfigParser()
     with open(config_file, "r") as conf_file_conn:

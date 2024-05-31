@@ -1,22 +1,25 @@
 from pipeline_manager import MASTER_CONFIG, SESSION, DB_ENGINE, load_config
 from pipeline_manager.expdb_classes import MerscopeDirectory, Experiment, Run 
 from pipeline_manager.expdb_manager import initialize_experiment_db
+from pipeline_manager.generate_sm import write_snakefile
+from pipeline_manager.parser import PARSER
 
-import os
+import os, sys
 import subprocess
 from pathlib import Path
 from configparser import ConfigParser
 
 # Run an experiment
-def _check_path(path:Path, return_detail:bool=False) -> bool:
-    exists=False; read=False; write=False; 
-    if os.access(path, os.F_OK): exists = True
-    if os.access(path.parent, os.R_OK): read = True
-    if os.access(path.parent, os.W_OK): write = True
-    if return_detail:
-        return exists, read, write
-    else:
-        return all([exists, read, write])
+# TODO: probably delete this: unnecessary and makes code unreadable.
+# def _check_path(path:Path, return_detail:bool=False) -> bool:
+#     exists=False; read=False; write=False; 
+#     if os.access(path, os.F_OK): exists = True
+#     if os.access(path.parent, os.R_OK): read = True
+#     if os.access(path.parent, os.W_OK): write = True
+#     if return_detail:
+#         return exists, read, write
+#     else:
+#         return all([exists, read, write])
                 
     # raise RuntimeError(f"You do not have read/write permissions in directory \"{path}\"")
     #else:
@@ -70,43 +73,31 @@ def setup(exp:Experiment, mast_conf:ConfigParser) -> str:
         name = exp.nname
     else: name = exp.name
     
-    # check and create data analysis folder
+    # check and create data analysis folder -----------------------------------
     ANAPRE_DIR_PATH = Path(mast_conf['Master']['analysis_prefix'], name)
-
-    anapre_ex, anapre_r, anapre_w = _check_path(ANAPRE_DIR_PATH, return_detail=True)
-    if not anapre_ex:
-        if not (anapre_r and anapre_w):
-            raise RuntimeError(f"You do not have read/write permissions in directory \"{ANAPRE_DIR_PATH}\"")
-        os.makedirs(ANAPRE_DIR_PATH)
+    os.makedirs(ANAPRE_DIR_PATH)
     
-    # check and create config file
+    # check and create config file --------------------------------------------
     CONFIG_COPY_PATH = Path(ANAPRE_DIR_PATH, f'config.{name}.ini')
-    conf_ex, conf_r, conf_w = _check_path(CONFIG_COPY_PATH, return_detail=True)
-    print("reached1", CONFIG_COPY_PATH)
-
-    if not conf_ex:
-        print("reached2")
-        if not (conf_r and conf_w):
-            raise RuntimeError(f"You do not have read/write permissions for \"{CONFIG_COPY_PATH}\"")
-        # create config file
+    
+    if not os.access(CONFIG_COPY_PATH, os.F_OK):
         conf_copy = exp._build_config(CONFIG_COPY_PATH)
         with open(CONFIG_COPY_PATH, "w") as config_copy_file:
             conf_copy.write(config_copy_file)
-    else:
-        if not (conf_r and conf_w):
-            raise RuntimeError(f"You do not have read/write permissions for \"{CONFIG_COPY_PATH}\"")
     
-    return CONFIG_COPY_PATH
+    # Check and create snakemake file -----------------------------------------
+    SNAKEMAKE_PATH = Path(ANAPRE_DIR_PATH, f'snakemake')
+
+    if not os.access(SNAKEMAKE_PATH, os.F_OK): # create snakemake file
+        write_snakefile(SNAKEMAKE_PATH)
+    
+    return SNAKEMAKE_PATH
 
 # DOWN HERE: select which experiments to run
 
 
 if __name__ == "__main__":
-    # initialize_experiment_db()
-    # test = Experiment.getallfromDB(SESSION)[0]
-    # conf = load_config()['Master']
+    PARSER.parse_args(sys.argv[1:])
 
-    # run_pipeline(test)
-    from pipeline_manager.generate_sm import *
-
-    write_snakefile()
+    
+    

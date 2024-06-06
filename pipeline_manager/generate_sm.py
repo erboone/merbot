@@ -12,7 +12,6 @@ class Pipe:
         #TODO: define formatters for each type of entry
         class Field:
             def __init__(self, type:str, targets:str, defualt:str=None, flank:str="\'"): 
-                print(type, targets)
                 self.type:str = type
                 self.flank:str = flank
                 if defualt is not None and pd.isna(targets):
@@ -58,7 +57,6 @@ class Pipe:
 def load_snakerules(path:str=SCHEMA_PATH):
     rule_objs = []
     rule_df = pd.read_csv(path, sep='\t', header=0)
-    print(type(rule_df))
     for row in rule_df.itertuples():
         rule_objs.append(
            Pipe.Rule(
@@ -72,7 +70,7 @@ def load_snakerules(path:str=SCHEMA_PATH):
 def write_snakefile(conf_path:Path):
     # TODO: next step here
     config = load_config(conf_path)
-    IOO = config['IO Options']
+    snake_path = config['IO Options']['snake']
 
     # TODO: put header in a file, potentially with other sm construction info?
     # TODO: put 'sched_conpath' in a global variable so we dont have to have a bunch of floating literals
@@ -81,7 +79,8 @@ def write_snakefile(conf_path:Path):
         f"envvars:\n"
         f"  \'sched_conpath\'\n\n"
     )
-    with open('snakefile', 'w') as new_snakefile:
+    
+    with open(snake_path, 'w') as new_snakefile:
         new_snakefile.write(header)
         for obj in load_snakerules():
             new_snakefile.write(str(obj))

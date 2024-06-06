@@ -134,6 +134,7 @@ class Experiment(Base):
         io['ms_output'] = str(Path(self.msdir, ms_dir_obj.output_dir, self.name))
         io['analysis_dir'] = str(Path(master_config['analysis_prefix'], self.name))
         io['config'] = str(config_path)
+        io['snake'] = str(Path(io['analysis_dir'], 'snakefile'))
         
         # Baeline files
         io['img_folder'] = str(Path(io['ms_raw_data'], io['img_folder']))

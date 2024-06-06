@@ -48,18 +48,24 @@ def run_pipeline(
         target (str): _description_. Defaults to 'all'.
         cores (int): _description_. Defaults to 2.
     """
+    # Look for config template
     if mast_conf_path is not None:
         mast_conf = load_config(mast_conf_path)
     else:
         mast_conf = MASTER_CONFIG
-    conf_path = setup(exp, mast_conf)
+    
+    conf_path, snake_path = setup(exp, mast_conf)
     conf = load_config(conf_path)
+    
+    # TODO: should this be run every time the pipeline is run?
+    write_snakefile(conf_path=conf_path)
 
     # TODO: consider what works best here: should we use target files or snakemake target names
     # if not (target == 'all'): target = conf['IO Options'][target]
     sub_env = os.environ.copy()
     sub_env["sched_expname"] = exp.name
     sub_env["sched_conpath"] = conf_path
+    os.chdir(conf["IO Options"]['analysis_dir'])
 
     # TODO: add nohup to this command
     snakemake_command = f"""snakemake {target} \
@@ -68,14 +74,14 @@ def run_pipeline(
     subprocess.run(snakemake_command, shell=True, env=sub_env)
 
 
-def setup(exp:Experiment, mast_conf:ConfigParser) -> str:
+def setup(exp:Experiment, mast_conf:ConfigParser) -> tuple[str, str]:
     if exp.nname is not None:
         name = exp.nname
     else: name = exp.name
     
     # check and create data analysis folder -----------------------------------
     ANAPRE_DIR_PATH = Path(mast_conf['Master']['analysis_prefix'], name)
-    os.makedirs(ANAPRE_DIR_PATH)
+    os.makedirs(ANAPRE_DIR_PATH, exist_ok=True)
     
     # check and create config file --------------------------------------------
     CONFIG_COPY_PATH = Path(ANAPRE_DIR_PATH, f'config.{name}.ini')
@@ -88,25 +94,19 @@ def setup(exp:Experiment, mast_conf:ConfigParser) -> str:
     # Check and create snakemake file -----------------------------------------
     SNAKEMAKE_PATH = Path(ANAPRE_DIR_PATH, f'snakemake')
 
+    # TODO: consider putting this in the 'write snakemake' function
+    # TODO: consider when snakemake file has to be overwritten
     if not os.access(SNAKEMAKE_PATH, os.F_OK): # create snakemake file
-        write_snakefile(SNAKEMAKE_PATH)
+        write_snakefile(CONFIG_COPY_PATH)
     
-    return SNAKEMAKE_PATH
+    return CONFIG_COPY_PATH, SNAKEMAKE_PATH
 
 # DOWN HERE: select which experiments to run
 
 
 if __name__ == "__main__":
-    PARSER.parse_args(sys.argv[1:])
+    args = PARSER.parse_args(sys.argv[1:])
 
-    write_snakefile('config.master.ini')
+    test_exp = Experiment.getallfromDB()[0]
 
-    sub_env = os.environ.copy()
-    sub_env["sched_expname"] = "test"
-    sub_env["sched_conpath"] = "this is just a test"
-
-    # TODO: add nohup to this command
-    snakemake_command = f"""snakemake --cores 1"""
-
-    subprocess.run(snakemake_command, shell=True, env=sub_env)
-    
+    run_pipeline(test_exp)

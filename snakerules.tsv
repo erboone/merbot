@@ -1,3 +1,2 @@
-notebook	input	output
-1_Cell_Segmentation	barcodes,img_folder	cell_by_gene_tab
-test	test	test
+notebook	input	output	conda	params
+test		test.txt	AutomatedPipeline	

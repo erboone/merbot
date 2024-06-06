@@ -23,11 +23,10 @@ _UNFILLED_FIELD = 'Tell Eric he needs to write this'
 PARSER.add_argument(
     'Expiriment',
     nargs='*', # Collects as many expiriments as are listed
-    required=True,
     help=_UNFILLED_FIELD
 )
 
-PARSER.add_argument(
+# PARSER.add_argument(
     
-)
+# )
 

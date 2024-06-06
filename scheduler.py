@@ -58,8 +58,8 @@ def run_pipeline(
     # TODO: consider what works best here: should we use target files or snakemake target names
     # if not (target == 'all'): target = conf['IO Options'][target]
     sub_env = os.environ.copy()
-    sub_env["sm_expname"] = exp.name
-    sub_env["sm_conpath"] = conf_path
+    sub_env["sched_expname"] = exp.name
+    sub_env["sched_conpath"] = conf_path
 
     # TODO: add nohup to this command
     snakemake_command = f"""snakemake {target} \
@@ -99,5 +99,14 @@ def setup(exp:Experiment, mast_conf:ConfigParser) -> str:
 if __name__ == "__main__":
     PARSER.parse_args(sys.argv[1:])
 
-    
+    write_snakefile('config.master.ini')
+
+    sub_env = os.environ.copy()
+    sub_env["sched_expname"] = "test"
+    sub_env["sched_conpath"] = "this is just a test"
+
+    # TODO: add nohup to this command
+    snakemake_command = f"""snakemake --cores 1"""
+
+    subprocess.run(snakemake_command, shell=True, env=sub_env)
     

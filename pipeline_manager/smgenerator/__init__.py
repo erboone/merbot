@@ -1,0 +1,1 @@
+from .generate_sm import write_snakefile

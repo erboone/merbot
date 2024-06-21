@@ -1,9 +1,11 @@
 from pathlib import Path
 import pandas as pd
 from pipeline_manager import load_config
+from .templates import HEADER, FIELD, RULE
 
 SCHEMA_PATH = "snakerules.tsv"
 
+# TODO: consider moving this to another file dedicated to defining this class
 class Pipe:
     pass
 
@@ -18,22 +20,26 @@ class Pipe:
                     self.targets:str = defualt
                 else:
                     self.targets:str = targets
-            def __repr__(self):
-                f = self.flank
+            
+            def __repr__(self):                
                 if pd.isna(self.targets):
                     return ""
                 else:
-                    return (
-                        f"\t{self.type}:\n"
-                        f"\t\t{f}{"\',\n\t\t\'".join(self.targets.split(sep=','))}{f}\n"
+                    targ_list = self.targets.split(sep=',')
+                    f = self.flank
+                    return FIELD.format(
+                        type=self.type,
+                        flank=f,
+                        items=f"{f},\n\t\t".join(targ_list)
                     )
 
         class Code:
             def __init__(self, outer_isnt):
                 self.outer:Pipe.Rule = outer_isnt
             def __repr__(self):
-                return ("\tscript:\n"
-                        f"\t\t\"{self.outer.notebook.targets}.py\"\n")
+                return ("\tshell:\n"
+                        f"\t\t\"python {self.outer.notebook.targets}.py\"\n"
+                        f"\t\t\"python {self.outer.notebook.targets}.py\"\n")
                 
         
         def __init__(self, row:pd.core.frame.pandas):
@@ -74,14 +80,9 @@ def write_snakefile(conf_path:Path):
 
     # TODO: put header in a file, potentially with other sm construction info?
     # TODO: put 'sched_conpath' in a global variable so we dont have to have a bunch of floating literals
-    header = (
-        f"import os\n"
-        f"envvars:\n"
-        f"  \'sched_conpath\'\n\n"
-    )
     
     with open(snake_path, 'w') as new_snakefile:
-        new_snakefile.write(header)
+        new_snakefile.write(HEADER)
         for obj in load_snakerules():
             new_snakefile.write(str(obj))
 

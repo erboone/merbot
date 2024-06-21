@@ -1,8 +1,10 @@
 from pipeline_manager import MASTER_CONFIG, SESSION, DB_ENGINE, load_config
-from pipeline_manager.expdb_classes import MerscopeDirectory, Experiment, Run 
-from pipeline_manager.expdb_manager import initialize_experiment_db
-from pipeline_manager.generate_sm import write_snakefile
-from pipeline_manager.parser import PARSER
+from pipeline_manager.expdb.orm_classes import MerscopeDirectory, Experiment, Run 
+from pipeline_manager.expdb.access import initialize_experiment_db
+from pipeline_manager.smgenerator import write_snakefile
+# TODO: Figure out where to put the PARSER file
+# from .parser import PARSER
+import parser
 
 import os, sys
 import subprocess
@@ -63,15 +65,15 @@ def run_pipeline(
     # TODO: consider what works best here: should we use target files or snakemake target names
     # if not (target == 'all'): target = conf['IO Options'][target]
     sub_env = os.environ.copy()
-    sub_env["sched_expname"] = exp.name
-    sub_env["sched_conpath"] = conf_path
-    os.chdir(conf["IO Options"]['analysis_dir'])
+    # sub_env["expname"] = exp.name
+    sub_env["conpath"] = conf_path
+    sub_env["run_id"] = 123456789
 
     # TODO: add nohup to this command
-    snakemake_command = f"""snakemake {target} \
-    --cores {cores}"""
+    snakemake_command = f"""snakemake {target} --cores {str(cores)} --dry-run"""
 
-    subprocess.run(snakemake_command, shell=True, env=sub_env)
+    subprocess.run(['snakemake', target, '--cores', str(cores), '--dry-run'], 
+                   shell=True, env=sub_env)
 
 
 def setup(exp:Experiment, mast_conf:ConfigParser) -> tuple[str, str]:
@@ -84,7 +86,7 @@ def setup(exp:Experiment, mast_conf:ConfigParser) -> tuple[str, str]:
     os.makedirs(ANAPRE_DIR_PATH, exist_ok=True)
     
     # check and create config file --------------------------------------------
-    CONFIG_COPY_PATH = Path(ANAPRE_DIR_PATH, f'config.{name}.ini')
+    CONFIG_COPY_PATH = Path(ANAPRE_DIR_PATH, f'config.ini')
     
     if not os.access(CONFIG_COPY_PATH, os.F_OK):
         conf_copy = exp._build_config(CONFIG_COPY_PATH)
@@ -105,7 +107,7 @@ def setup(exp:Experiment, mast_conf:ConfigParser) -> tuple[str, str]:
 
 
 if __name__ == "__main__":
-    args = PARSER.parse_args(sys.argv[1:])
+    # args = PARSER.parse_args(sys.argv[1:])
 
     test_exp = Experiment.getallfromDB()[0]
 

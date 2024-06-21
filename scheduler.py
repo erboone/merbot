@@ -1,6 +1,6 @@
 from pipeline_manager import MASTER_CONFIG, SESSION, DB_ENGINE, load_config
-from pipeline_manager.expdb.orm_classes import MerscopeDirectory, Experiment, Run 
-from pipeline_manager.expdb.access import initialize_experiment_db
+from pipeline_manager.expdb import MerscopeDirectory, Experiment, Run 
+from pipeline_manager.expdb import initialize_experiment_db
 from pipeline_manager.smgenerator import write_snakefile
 # TODO: Figure out where to put the PARSER file
 # from .parser import PARSER

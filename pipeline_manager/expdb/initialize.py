@@ -13,7 +13,7 @@ import os
 from pathlib import Path
 
 from typing import List
-from .orm_classes import MerscopeDirectory, Experiment, Run, Base
+from .orm import MerscopeDirectory, Experiment, Run, Base
 
 import json
 from .. import MASTER_CONFIG, SESSION, DB_ENGINE

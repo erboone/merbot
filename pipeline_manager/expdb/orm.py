@@ -12,7 +12,7 @@
 
 # Database access
 from sqlalchemy import select, update
-from .. import MASTER_CONFIG, SESSION, DB_ENGINE
+from pipeline_manager import MASTER_CONFIG, SESSION, DB_ENGINE
 
 # Object declarations
 import os, copy

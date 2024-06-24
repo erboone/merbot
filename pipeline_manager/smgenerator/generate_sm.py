@@ -10,12 +10,13 @@ class Pipe:
     pass
 
     class Rule:
-
+        wrapper = tuple[str, str]
         #TODO: define formatters for each type of entry
         class Field:
-            def __init__(self, type:str, targets:str, defualt:str=None, flank:str="\'"): 
+            wrap = '\'{target}\''
+
+            def __init__(self, type:str, targets:str, defualt:str=None): 
                 self.type:str = type
-                self.flank:str = flank
                 if defualt is not None and pd.isna(targets):
                     self.targets:str = defualt
                 else:
@@ -25,39 +26,54 @@ class Pipe:
                 if pd.isna(self.targets):
                     return ""
                 else:
-                    targ_list = self.targets.split(sep=',')
-                    f = self.flank
+                    targ_list = [self.wrap.format(target=targ) for targ in self.targets.split(sep=',')]
                     return FIELD.format(
                         type=self.type,
-                        flank=f,
-                        items=f"{f},\n\t\t".join(targ_list)
+                        items=f",\n\t\t".join(targ_list)
                     )
+        
+        class Files(Field):
+            wrap = 'IO_OPTS[\'{target}\']'
 
-        class Code:
+            def __init__(self, type:str, targets:str):
+                super().__init__(type, targets)
+
+            def __repr__(self):
+                targ_list = [self.wrap.format(target=targ) for targ in self.targets.split(sep=',')]
+                
+                return FIELD.format(
+                    type=self.type,
+                    items=f",\n\t\t".join(targ_list))
+        class Environment(Field):
+            def __repr__():
+                pass
+
+        class Code(Field):
             def __init__(self, outer_isnt):
                 self.outer:Pipe.Rule = outer_isnt
             def __repr__(self):
-                return ("\tshell:\n"
-                        f"\t\t\"python {self.outer.notebook.targets}.py\"\n"
-                        f"\t\t\"python {self.outer.notebook.targets}.py\"\n")
+                return ("\tscript:\n"
+                        f"\t\t\"{self.outer.notebook.targets}.py\"\n")
                 
         
         def __init__(self, row:pd.core.frame.pandas):
             self.notebook:self.Field = self.Field('notebook', row[1])
-            self.input:self.Field = self.Field('input', row[2])
-            self.output:self.Field = self.Field('output', row[3])
-            self.conda:self.Field = self.Field('conda', row[4], defualt="config_path=os.environ[\"config_path\"]")
-            self.params:self.Field = self.Field('params', row[5], defualt="config_path=os.environ[\"sched_conpath\"]", flank="")
+            self.input = self.Files('input', row[2])
+            self.output = self.Files('output', row[3])
+            self.conda:self.Field = self.Field('conda', row[4], defualt="AutomatedPipeline")
+            self.params:self.Field = self.Field('params', row[5], defualt="config_path=os.environ[\"sched_conpath\"]")
             
             self.code:self.Code = self.Code(outer_isnt=self)
 
-        def __repr__(self) -> str: return \
-            (f"rule {self.notebook.targets}:\n"
-            f"{self.input!r}"
-            f"{self.output!r}"
-            f"{self.params!r}"
-            f"{self.conda!r}"
-            f"{self.code!r}")
+        def __repr__(self) -> str: 
+            fields_str = ""
+            for f in [self.input, self.output, self.conda, self.params]:
+                fields_str += str(f)
+            return \
+                RULE.format(
+                    name=self.notebook.targets,
+                    fields=fields_str
+                )
 
 
 def load_snakerules(path:str=SCHEMA_PATH):

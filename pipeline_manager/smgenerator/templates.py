@@ -6,30 +6,30 @@ import subprocess
 from configparser import ConfigParser
 
 envvars:
-	'conpath'
+	'con_path',
 	'run_id'
 
 config = ConfigParser()
-con_path = os.environ['conpath']
-with open(conpath, "r") as conf_file_conn:
+CON_PATH = os.environ['con_path']
+with open(CON_PATH, "r") as conf_file_conn:
 	config.read_file(conf_file_conn)
 
-RUN_ID = con_path = os.environ['run_id']
+RUN_ID = os.environ['run_id']
 RUN_LOG = config["Master"]["run_log"]
 
 """
 
 RULE = \
 """
-{name}:
-	{fields}
+rule {name}:
+{fields}
+
 """
 
 FIELD = \
-"""
+"""\
 	{type}:
-		{flank}{items}{flank}
-
+		{items}
 """
 
 CODE = \

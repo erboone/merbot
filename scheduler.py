@@ -46,10 +46,12 @@ def run_pipeline(
         exp (Experiment): Experiment to run (object retreived from database)
     
     Optional:
-        conf_path (str): . Defaults to hlpr.CONFIG_PATH.
+        mast_conf_path (str): . Defaults to hlpr.CONFIG_PATH.
         target (str): _description_. Defaults to 'all'.
         cores (int): _description_. Defaults to 2.
     """
+
+
     # Look for config template
     if mast_conf_path is not None:
         mast_conf = load_config(mast_conf_path)
@@ -66,13 +68,18 @@ def run_pipeline(
     # if not (target == 'all'): target = conf['IO Options'][target]
     sub_env = os.environ.copy()
     # sub_env["expname"] = exp.name
-    sub_env["conpath"] = conf_path
-    sub_env["run_id"] = 123456789
+    sub_env["con_path"] = conf_path
+    sub_env["run_id"] = str(123456789)
 
     # TODO: add nohup to this command
-    snakemake_command = f"""snakemake {target} --cores {str(cores)} --dry-run"""
-
-    subprocess.run(['snakemake', target, '--cores', str(cores), '--dry-run'], 
+    snakemake_command = ' '.join([
+        f"snakemake {target}",
+        f"--snakefile {snake_path}",
+        f"--cores {str(cores)}",
+         "--dry-run"
+    ])
+    print(snakemake_command)
+    subprocess.run(snakemake_command, 
                    shell=True, env=sub_env)
 
 
@@ -94,7 +101,7 @@ def setup(exp:Experiment, mast_conf:ConfigParser) -> tuple[str, str]:
             conf_copy.write(config_copy_file)
     
     # Check and create snakemake file -----------------------------------------
-    SNAKEMAKE_PATH = Path(ANAPRE_DIR_PATH, f'snakemake')
+    SNAKEMAKE_PATH = Path(ANAPRE_DIR_PATH, f'snakefile')
 
     # TODO: consider putting this in the 'write snakemake' function
     # TODO: consider when snakemake file has to be overwritten

@@ -1,3 +1,3 @@
-step	input	output	conda	params
-cellpose	cbgt,barcodes	cell_by_gene_tab	JacBase
-annotation	cell_by_gene_tab	annotated_h5ad	Annotation	
+step	input	output	params	env
+cellpose	cell_by_gene_tab,barcodes	cell_by_gene_tab	test	JacBase
+annotation	cell_by_gene_tab	annotated_h5ad	test	Annotation

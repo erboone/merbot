@@ -1,7 +1,7 @@
 from pipeline_manager import MASTER_CONFIG, SESSION, DB_ENGINE, load_config
 from pipeline_manager.expdb import MerscopeDirectory, Experiment, Run 
 from pipeline_manager.expdb import initialize_experiment_db
-from pipeline_manager.smgenerator import write_snakefile
+from pipeline_manager.smgenerator import load_pipeline
 # TODO: Figure out where to put the PARSER file
 # from .parser import PARSER
 import parser
@@ -62,7 +62,7 @@ def run_pipeline(
     conf = load_config(conf_path)
     
     # TODO: should this be run every time the pipeline is run?
-    write_snakefile(conf_path=conf_path)
+    load_pipeline(conf_path).write_sf()
 
     # TODO: consider what works best here: should we use target files or snakemake target names
     # if not (target == 'all'): target = conf['IO Options'][target]
@@ -106,6 +106,7 @@ def setup(exp:Experiment, mast_conf:ConfigParser) -> tuple[str, str]:
     # TODO: consider putting this in the 'write snakemake' function
     # TODO: consider when snakemake file has to be overwritten
     if not os.access(SNAKEMAKE_PATH, os.F_OK): # create snakemake file
+        print("This is reached")
         write_snakefile(CONFIG_COPY_PATH)
     
     return CONFIG_COPY_PATH, SNAKEMAKE_PATH

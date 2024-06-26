@@ -16,12 +16,12 @@ with open(CON_PATH, "r") as conf_file_conn:
 
 RUN_ID = os.environ['run_id']
 RUN_LOG = config["Master"]["run_log"]
-
+IO_OPTS = config["IO Options"]
 """
 
 RULE = \
 """
-rule {name}:
+rule:
 {fields}
 
 """
@@ -38,7 +38,13 @@ CODE = \
 		with open(RUN_LOG, 'a') as rl_file:
 			rl_file.write(f"{RUN_ID}::{notebook}:{dict(config[notebook])}")
 		subprocess.run(f"jupyter nbconvert --to python {notebook}")
-""" 
+"""
+
+INIT_FIELD_ERR_MSG = """
+\"init_field\" requires a valid literal in the \'type\' field.
+Expected one of ['step', 'input', 'output', 'env', 'params'] but got '{type}'.
+Targets: '{targets}'
+"""
 
 if __name__ == "__main__":
 	import os

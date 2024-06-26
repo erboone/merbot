@@ -1,1 +1,1 @@
-from .generate_sm import write_snakefile
+from .generate_sm import Pipe, load_pipeline

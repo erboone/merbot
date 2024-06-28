@@ -135,7 +135,7 @@ class _Field:
 
 class Name(_Field):
     order=1
-    wrap = '{target}'
+    wrap = '\'{target}\''
 
     def __init__(self, type: str, targets: str):
         super().__init__(type, targets)
@@ -149,7 +149,7 @@ class Files(_Field):
         
 class Params(_Field):
     order=3
-    required = '\"config_path=os.environ[\"sched_conpath\"]\"'
+    required = 'config_path=CON_PATH'
     def __init__(self, type:str, targets: str):
         super().__init__(type, targets)
 

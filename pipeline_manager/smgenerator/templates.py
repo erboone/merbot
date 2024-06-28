@@ -23,7 +23,6 @@ RULE = \
 """
 rule:
 {fields}
-
 """
 
 FIELD = \
@@ -33,7 +32,7 @@ FIELD = \
 """
 
 CODE = \
-"""
+"""\
 	run:
 		with open(RUN_LOG, 'a') as rl_file:
 			rl_file.write(f"{RUN_ID}::{notebook}:{dict(config[notebook])}")

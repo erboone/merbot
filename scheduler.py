@@ -5,6 +5,7 @@ from pipeline_manager.smgenerator import load_pipeline
 # TODO: Figure out where to put the PARSER file
 # from .parser import PARSER
 import parser
+import json
 
 import os, sys
 import subprocess
@@ -71,6 +72,10 @@ def run_pipeline(
     sub_env["con_path"] = conf_path
     sub_env["run_id"] = str(123456789)
 
+    with open(conf["Master"]['run_log'], 'wr')  as runlog_file:
+        runlog_file.readline()
+        print()
+    
     # TODO: add nohup to this command
     snakemake_command = ' '.join([
         f"snakemake {target}",
@@ -78,9 +83,19 @@ def run_pipeline(
         f"--cores {str(cores)}",
          "--dry-run"
     ])
+
     print(snakemake_command)
     subprocess.run(snakemake_command, 
                    shell=True, env=sub_env)
+
+def getlogno(config:ConfigParser):
+    runlog_path = Path(config["Master"]['run_log'])
+    if not runlog_path.exists():
+        
+        with open(runlog_path, 'w') as new_runlog_file:
+            json.dump(config, fp=new_runlog_file)
+    # with open(runlog_path, 'r+')  as runlog_file:
+        
 
 
 def setup(exp:Experiment, mast_conf:ConfigParser) -> tuple[str, str]:
@@ -118,5 +133,5 @@ if __name__ == "__main__":
     # args = PARSER.parse_args(sys.argv[1:])
 
     test_exp = Experiment.getallfromDB()[0]
-
-    run_pipeline(test_exp)
+    getlogno(load_config())
+    # run_pipeline(test_exp)

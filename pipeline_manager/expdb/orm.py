@@ -27,7 +27,6 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 # -----------------------------------------------------------------------------
 # open config file to build engine URL and connect
 print(os.getcwd())
-CONFIG_PATH = "config.master.ini"
 master_config = MASTER_CONFIG['Master']
 io_config = MASTER_CONFIG['IO Options']
 
@@ -169,8 +168,8 @@ class Run(Base):
                                             cascade="all, delete-orphan")
 
 class Checkpoint(Base):
-
-    __tablename__ = "checkpoints"
+    # TODO: figure out how not to include in db
+    __tablename__ = "checkpoints_base"
 
     id: Mapped[int] = mapped_column('chkpt_id', Integer, nullable=False, primary_key=True, autoincrement=True)
     run_id: Mapped[int] = mapped_column('run_id', Integer, ForeignKey("runs.id"))
@@ -181,3 +180,15 @@ class Checkpoint(Base):
     complete: Mapped[bool] = mapped_column('complete', Boolean, nullable=False, default=False)
 
     # TODO: add relation with before and after checkpoint to automatically create a graph
+
+for sect in MASTER_CONFIG.sections():
+    c = []
+    sect_keys = MASTER_CONFIG[sect].keys()
+
+    properties = {}
+    c.append(type(
+        f"checkpoint_{sect}",
+        (Checkpoint,),
+        {key: mapped_column(f"{key}", String(256), nullable=True, default=False) for key in sect_keys}
+    ))
+

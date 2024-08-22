@@ -126,6 +126,9 @@ def setup(exp:Experiment, mast_conf:ConfigParser) -> tuple[str, str]:
     
     return CONFIG_COPY_PATH, SNAKEMAKE_PATH
 
+def write_conf_copy(exp):
+    pass
+
 # DOWN HERE: select which experiments to run
 
 

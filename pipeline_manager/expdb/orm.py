@@ -75,7 +75,7 @@ class Experiment(Base):
     
     exp_id = mapped_column('exp_id', Integer, nullable=False, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column('name', String(128), nullable=False)
-    nname: Mapped[str] = mapped_column('nickname', String(128), nullable=True)
+    nname: Mapped[str] = mapped_column('nickname', String(128), nullable=True, default=None)
     # TODO: overhaul the backup system
     backup: Mapped[bool] = mapped_column('redundant', Boolean, nullable=False, default=False)
     msdir: Mapped[str] = mapped_column('msdir', String(512),  ForeignKey("merscope_dirs.root"), nullable=False)

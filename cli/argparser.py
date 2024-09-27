@@ -23,9 +23,11 @@ find:Parser = subparser.add_parser(
 
 find.add_argument(
     'name',
+    default='_null_',
     help='The name or nickname to search for in the database'
 )
 
+# Can this be inherited?
 find.add_argument(
     '-v', '--verbose',
     action='store_true',
@@ -39,7 +41,7 @@ nname:Parser = subparser.add_parser(
 )
 
 nname.add_argument('identifier',
-    metavar='str',
+    metavar='id',
     help='Full name of the experiment that will be receiving an alias'
 )
 

@@ -77,7 +77,7 @@ class Experiment(Base):
     name: Mapped[str] = mapped_column('name', String(128), nullable=False)
     nname: Mapped[str] = mapped_column('nickname', String(128), nullable=True, default=None)
     # TODO: overhaul the backup system
-    backup: Mapped[bool] = mapped_column('redundant', Boolean, nullable=False, default=False)
+    backup: Mapped[bool] = mapped_column('redundant', Boolean, nullable=False, default=False, unique=True)
     msdir: Mapped[str] = mapped_column('msdir', String(512),  ForeignKey("merscope_dirs.root"), nullable=False)
     msdir_obj = relationship("MerscopeDirectory", back_populates="experiments")
     runs: Mapped[int] = relationship("Run", back_populates="parent_experiment",

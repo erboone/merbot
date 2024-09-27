@@ -8,7 +8,10 @@ from cli.pathing import find, update, nname
 
 if __name__ == '__main__':
     args = PARSER.parse_args()
-    print(args)
+    # verbose = args.v
+    
+    # if verbose:
+    #     print(args)
     
     match args.subcommand:
         case 'find':

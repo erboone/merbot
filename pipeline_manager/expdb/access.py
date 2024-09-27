@@ -15,6 +15,14 @@ def _orm_tablename(orm_class:str|Base):
         orm_class = eval(orm_class)
 
     return orm_class.__table__
+
+def _sanitize_dict(di:dict):
+    new_di = di.copy()
+    for key, val in di.items():
+        if isinstance(val, str):
+            new_di[key] = "\"" + val + "\""
+
+    return new_di 
     
 
 def select(orm_class:str | Base,
@@ -34,10 +42,11 @@ def select(orm_class:str | Base,
     else:
         raise RuntimeError(f'Issue with typing: \'orm_class\' is {type(orm_class)}')
     
+    where = _sanitize_dict(where)
+    
 
     conditions_s = f' {wherelogic} '.join(
-        # TODO: this will break as soon as other data types are introduced figure out a workaround then
-        ["{}.{} {} \"{}\"".format(*[orm_class, key, wherecomp, val]) for key, val in where.items()]
+        ["{}.{} {} {}".format(*[orm_class, key, wherecomp, val]) for key, val in where.items()]
     )
     conditions = eval(conditions_s)
     
@@ -49,15 +58,18 @@ def update(orm_class:str | Base,
            updates:dict,
            where:dict,
            wherelogic:log_opts='and',
-           wherecomp:comp_opts='=='):
+           wherecomp:comp_opts='==',
+           commit=True):
+
     
     orm_object = eval(orm_class)
+    where = _sanitize_dict(where)
     
     conditions_s = f' {wherelogic} '.join(
         # TODO: this will break as soon as other data types are introduced figure out a workaround then
-        ["{}.{} {} \"{}\"".format(*[orm_class, key, wherecomp, val]) for key, val in where.items()]
+        ["{}.{} {} {}".format(*[orm_class, key, wherecomp, val]) for key, val in where.items()]
     )
-
+    print()
     conditions = eval(conditions_s)
 
     stmt = (
@@ -65,16 +77,10 @@ def update(orm_class:str | Base,
         where(conditions).
         values(**updates)
     )
-
+    print(conditions_s, "\t\t", stmt)
     SESSION.execute(stmt)
-
-    stmt = (
-        sql.update(orm_object).
-        where(conditions)
-    )
-    test = SESSION.execute(stmt)
-
-    SESSION.commit()
+    if commit:
+        SESSION.commit()
 
 if __name__ == "__main__":
     update('Experiment', {'name':'this'})

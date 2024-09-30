@@ -11,6 +11,7 @@
 
 import os
 from pathlib import Path
+from glob import glob
 
 from typing import List
 from .orm import MerscopeDirectory, Experiment, Run, Base
@@ -43,24 +44,43 @@ def _initialize_merscope_dirs():
     TODO: Add check to see if msdir_root exists and is accessable
     TODO: Add check/warning if MSDIR has been moved.
     """
-    conf_msdir_paths = json.loads(MASTER_CONFIG.get("Master", "merscope_dirs"))
+    conf_msdir_paths = json.loads(MASTER_CONFIG.get("Master", "merscope_exp_dirs"))
+    conf_xendir_paths = json.loads(MASTER_CONFIG.get("Master", "xenium_exp_dirs"))
+
+
     
     db_msdir_objs: List[MerscopeDirectory] = MerscopeDirectory.getallfromDB()
-    db_msdir_paths: list[str] = [dmo.root for dmo in db_msdir_objs]
+    db_rootdir_paths: list[str] = [dmo.root for dmo in db_msdir_objs]
 
     for ms_path in conf_msdir_paths:
-        if ms_path in db_msdir_paths:
+        if ms_path in db_rootdir_paths:
             continue
         else:
             raw_path, out_path = _get_merscope_subdirs(ms_path)
             
-            new_msdir = MerscopeDirectory(
+            new_ms_dir = MerscopeDirectory(
                 root=ms_path,
+                tech='MERSCOPE',
                 raw_dir=raw_path,
                 output_dir=out_path
             )
 
-            SESSION.add(new_msdir)
+            SESSION.add(new_ms_dir)
+            SESSION.commit()
+
+    # This was written after the ms ^ above. It is a more efficient 
+    # implementation using glob. In the future I would like this reimplemented
+    # to be unified (for extensibility and maintainence sake) 
+    for xen_path in conf_xendir_paths:
+        if xen_path in db_rootdir_paths:
+            continue
+        else:
+            new_xen_dir = MerscopeDirectory(
+                root=xen_path,
+                tech='XENIUM'
+            )
+
+            SESSION.add(new_xen_dir)
             SESSION.commit()
 
 
@@ -71,22 +91,31 @@ def _initialize_experiments():
     # Access database loads all MERSCOPE Directory objects into a list
     db_msdir_objs: List[MerscopeDirectory] = MerscopeDirectory.getallfromDB()
 
-    for ms_obj in db_msdir_objs:
-        db_expir_names = [e.name for e in ms_obj.experiments]
-        db_outer_exp_names = ms_obj.get_outer_experiments(SESSION)
-        print(db_outer_exp_names)
-        found_expir_names = os.listdir(f"{ms_obj.root}/{ms_obj.raw_dir}")
-        print("found : ", found_expir_names)
+    for rootdir_obj in db_msdir_objs:
+        db_expir_names = [e.name for e in rootdir_obj.experiments]
+        db_outer_exp_names = rootdir_obj.get_outer_experiments(SESSION)
+
+        match rootdir_obj.tech:
+            case "MERSCOPE":
+                pattern = f"{rootdir_obj.root}/*data*/*"
+            case "XENIUM":
+                pattern = f"{rootdir_obj.root}/*/*"
+        
+        found_expir_names = [os.path.basename(path) for path in glob(pattern)]
+        print(f"{rootdir_obj.root}")
+        # print("found: ", found_expir_names)
         # Iterate over all new experiment names
         # Note: this implemetation allows for the same experiment name in 
         # different Merscope Directories
-        print(f"{ms_obj.root} adding exp:",[n for n in found_expir_names if n not in db_expir_names])
+        print("adding:", end='\n\t')
+        print(*[n for n in found_expir_names if n not in db_expir_names], sep='\n\t')
+        print()
         for new_expir_name in [n for n in found_expir_names 
                                     if n not in db_expir_names]:
         
             new_expir_obj = Experiment(
                 name=new_expir_name,
-                msdir=ms_obj.root,
+                msdir=rootdir_obj.root,
                 # Marks redundancy if experimentname exists elsewhere in the database
                 backup=(new_expir_name in db_outer_exp_names)
             )

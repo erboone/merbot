@@ -50,9 +50,12 @@ class MerscopeDirectory(Base):
     __tablename__ = "merscope_dirs"
 
     root: Mapped[str] = mapped_column('root', String(512), nullable=False, primary_key=True)
+    tech: Mapped[str] = mapped_column('technology', String(512), nullable=False)
     init_dt: Mapped[str] = mapped_column('init_dt', DateTime, nullable=False, default=datetime.now())
-    raw_dir: Mapped[str] = mapped_column('raw_dir', String(512), nullable=False)
-    output_dir: Mapped[str] = mapped_column('output_dir', String(512), nullable=False)
+    # I've turned these to be nullable. They should be dropped and all dir 
+    # structure handled by mftools 
+    raw_dir: Mapped[str] = mapped_column('raw_dir', String(512), nullable=True)
+    output_dir: Mapped[str] = mapped_column('output_dir', String(512), nullable=True)
     experiments = relationship('Experiment', back_populates='msdir_obj')
 
     def get_outer_experiments(self, return_obj:bool=False):
@@ -77,12 +80,12 @@ class Experiment(Base):
     name: Mapped[str] = mapped_column('name', String(128), nullable=False)
     nname: Mapped[str] = mapped_column('nickname', String(128), nullable=True, default=None)
     # TODO: overhaul the backup system
-    backup: Mapped[bool] = mapped_column('redundant', Boolean, nullable=False, default=False, unique=True)
+    backup: Mapped[bool] = mapped_column('redundant', Boolean, nullable=False, default=False)
+    # TODO: rename msdir and all names related to MERSCOPE
     msdir: Mapped[str] = mapped_column('msdir', String(512),  ForeignKey("merscope_dirs.root"), nullable=False)
     msdir_obj = relationship("MerscopeDirectory", back_populates="experiments")
     runs: Mapped[int] = relationship("Run", back_populates="parent_experiment",
                                             cascade="all, delete-orphan")
-    
     analysis_path:Mapped[str] = mapped_column('postp_path', String(512), nullable=False, 
                                             default=f"{master_config['analysis_prefix']}/{name}")
     

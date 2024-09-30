@@ -69,3 +69,19 @@ nname.add_argument('nickname',
     help='The new, easy to remember alias for an experiment'
 )
 
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+# ----- Database subcommands -----
+
+# initialize
+nname:Parser = subparser.add_parser('init',
+    help='creates database'
+)
+
+# refresh
+nname:Parser = subparser.add_parser('refresh',
+    help='creates database'
+)
+
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+# ----- Config subcommands -----
+

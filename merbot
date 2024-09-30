@@ -5,6 +5,8 @@
 import sys, argparse, logging
 from cli.argparser import PARSER
 from cli.pathing import find, update, nname
+from pipeline_manager.expdb import initialize_experiment_db
+
 
 if __name__ == '__main__':
     args = PARSER.parse_args()
@@ -16,6 +18,8 @@ if __name__ == '__main__':
     match args.subcommand:
         case 'find':
             find(**vars(args))
+        case 'list':
+            pass
         case 'update':
             update(**vars(args))
         case 'nname':
@@ -23,7 +27,9 @@ if __name__ == '__main__':
             nname(**vars(args))
         case 'add':
             pass
-
+        case 'init':
+            # TODO: wrap this please
+            initialize_experiment_db()
 
 
 

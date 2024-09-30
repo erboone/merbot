@@ -9,4 +9,5 @@ This pipeline was made in order to both improve on the cell segmentation step of
 
 "Put a little diagram here"
 
-2. 
+#### TODO:
+1. Refactor pipeline_manager to pipe-man

@@ -88,7 +88,6 @@ class Experiment(Base):
                                             cascade="all, delete-orphan")
     analysis_path:Mapped[str] = mapped_column('postp_path', String(512), nullable=False, 
                                             default=f"{master_config['analysis_prefix']}/{name}")
-    
 
     @classmethod
     def getallfromDB(cls, 
@@ -155,7 +154,46 @@ class Experiment(Base):
     def __repr__(self):
         class_info = "%10s\t%10s" % (self.name, [self.runs])
         return class_info
-        
+
+class Metadata(Base):
+    __tablename__ = "metadata" 
+    
+    ExperimentName:Mapped[str] = mapped_column('name', String(128), nullable=False, primary_key=True) # Use this a a foreign key
+    Invoice:Mapped[str]
+    Collaborator:Mapped[str]
+    ImagingDate:Mapped[str]
+    SampleType:Mapped[str]
+    Codebook:Mapped[str]
+    TargetGenes:Mapped[str]
+    ImgCartridge:Mapped[str]
+    RawDataLocation:Mapped[str]
+    AnalysisLocation:Mapped[str]
+    OutputLocation:Mapped[str]
+    Issues:Mapped[str]
+    AnalyzedBy:Mapped[str]
+    ImagingArea:Mapped[str]
+    RunTime:Mapped[str]
+    SummaryResults:Mapped[str]
+    DescriptionNotes:Mapped[str]
+
+    # nname: Mapped[str] = mapped_column('nickname', String(128), nullable=True, default=None)
+    # # TODO: overhaul the backup system
+    # backup: Mapped[bool] = mapped_column('redundant', Boolean, nullable=False, default=False)
+    # # TODO: rename msdir and all names related to MERSCOPE
+    # msdir: Mapped[str] = mapped_column('msdir', String(512),  ForeignKey("merscope_dirs.root"), nullable=False)
+    # msdir_obj = relationship("MerscopeDirectory", back_populates="experiments")
+    # runs: Mapped[int] = relationship("Run", back_populates="parent_experiment",
+    #                                         cascade="all, delete-orphan")
+    # analysis_path:Mapped[str] = mapped_column('postp_path', String(512), nullable=False, 
+    #                                         default=f"{master_config['analysis_prefix']}/{name}")
+    
+
+
+# TODO: this here      
+# class Reference(Base):
+#     exp_id = mapped_column('ref_id', Integer, nullable=False, primary_key=True, autoincrement=True)
+#     name: Mapped[str] = mapped_column('name', String(128), nullable=False)
+
 
 class Run(Base):
 

@@ -10,13 +10,12 @@
 #
 
 import os
+import json
 from pathlib import Path
+from typing import List
 from glob import glob
 
-from typing import List
-from .orm import MerscopeDirectory, Experiment, Run, Base
-
-import json
+from .orm import MerscopeDirectory, Experiment, Run, Metadata, Base
 from .. import MASTER_CONFIG, SESSION, DB_ENGINE
 
 #=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-
@@ -28,6 +27,7 @@ def initialize_experiment_db():
     _create_database()
     _initialize_merscope_dirs()
     _initialize_experiments()
+    _add_tracking_sheet_metadata()
 
 #=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-
 # checks all the MERSCOPE directories listed in the config.master.ini file, 
@@ -142,6 +142,52 @@ def _get_merscope_subdirs(path:str):
                     2. remove \"{path}\" from config.master.ini[Master][merscope_dirs] """)
         
     return found_subdir_map['data'][0], found_subdir_map['output'][0]
+
+def _add_tracking_sheet_metadata():
+    # TODO: when initializing, this should pulldown from the google drive, for now, we'll use a local CSV
+    # TODO: this shouldn't change to much, so I don't think there is a ton of need to improve past manual implementation
+    CSV_FILE_PATH = 'MERSCOPEExperimentLog.tsv'
+    connection = DB_ENGINE.connect()
+
+    with open(CSV_FILE_PATH, 'r') as metadata_file:
+        # Discard header
+        _ = metadata_file.readline()
+
+        for line in metadata_file.readlines():
+            spl_line = line.split('\t')
+            new_meta_obs = Metadata(
+                ExperimentName = spl_line[0],
+                Invoice = spl_line[1],
+                Collaborator = spl_line[2],
+                ImagingDate = spl_line[3],
+                SampleType = spl_line[4],
+                Codebook = spl_line[5],
+                TargetGenes = spl_line[6],
+                ImgCartridge = spl_line[7],
+                RawDataLocation = spl_line[8],
+                AnalysisLocation = spl_line[9],
+                OutputLocation = spl_line[10],
+                Issues = spl_line[11],
+                AnalyzedBy = spl_line[12],
+                ImagingArea = spl_line[13],
+                RunTime = spl_line[14],
+                SummaryResults = spl_line[15],
+                DescriptionNotes = spl_line[16]
+            )
+            SESSION.add(new_meta_obs)
+    SESSION.commit()
+
+    
+
+    # df = pd.read_csv(CSV_FILE_PATH)
+    # df.to_sql(name='metadata', if_exists='replace', con=connection)
+
+    # with open(CSV_FILE_PATH, 'r') as f:    
+    #     conn = DB_ENGINE.raw_connection()
+    #     cursor = conn.cursor()
+    #     cmd = 'COPY tbl_name(col1, col2, col3) FROM STDIN WITH (FORMAT CSV, HEADER FALSE)'
+    #     cursor.execute(cmd, f)
+    #     conn.commit()
 
 
 if __name__ == "__main__":

@@ -4,10 +4,10 @@ An automated pipeline for analyzing large numbers of merFISH samples with minima
 #### Purpose
 This pipeline was made in order to both improve on the cell segmentation step of the Vizgen MERSCOPE pipeline, as well as automate quality control and first visualizations of the data.
 
-#### Assumptions made
-1. That data was originally processed on a Vizgen MERSCOPE which has completed it's analysis and output the result into the directories with the following format.
+## Info
 
-"Put a little diagram here"
+#### merbot
+Is the actuall command line script. Most of the actual code is in the cli folder
 
-#### TODO:
-1. Refactor pipeline_manager to pipe-man
+#### _trashbin
+This one is for files that I made pre-2024.10.25 that I do not think will be useful, but cant bring to delete. Most of them are from when I was trying to dynamically generate snakemake files. May be useful later, so I'll keep them around.

@@ -2,8 +2,8 @@ import sqlalchemy as sql
 from typing import Literal
 from warnings import warn
 
-from .. import SESSION
-from .orm import Base, MerscopeDirectory, Experiment, Run, Checkpoint
+from ._constants import SESSION
+from .orm import Base, RootDirectory, Experiment, Metadata, Run, Checkpoint
 
 # TODO: include other options
 comp_opts = Literal['==', '!=']
@@ -35,22 +35,22 @@ def select(orm_class:str | Base,
     # for select({orm class}) returns orm objects
     
     # Handles string input maybe consider moving to a helper class if repeated thrice
+    # TODO: this whole thing needs more reliable input handling; I need tests
     if return_keys:
         orm_object = _orm_tablename(orm_class)
-    elif not isinstance(orm_class, Base):
+    elif isinstance(orm_class, str):
         orm_object = eval(orm_class)
     else:
         raise RuntimeError(f'Issue with typing: \'orm_class\' is {type(orm_class)}')
     
     where = _sanitize_dict(where)
-    
 
     conditions_s = f' {wherelogic} '.join(
-        ["{}.{} {} {}".format(*[orm_class, key, wherecomp, val]) for key, val in where.items()]
+        ["{} {} {}".format(*[key, wherecomp, val]) for key, val in where.items()]
     )
     conditions = eval(conditions_s)
     
-    stmt = sql.select(orm_object).where(conditions)
+    stmt = sql.select(orm_object).join(Metadata).where(conditions)
     found = SESSION.scalars(stmt).all()
     return found
 

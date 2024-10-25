@@ -4,15 +4,15 @@
 # SQLite3 relational database (see table definitions for table schema) 
 #
 # Abreviations for readability:
-# msdir | MSDIR | ms_dir == MERSCOPE directory, the directory we can expect to
+# rootdir | rootDIR | ms_dir == MERSCOPE directory, the directory we can expect to
 #                           find the raw output of a MERscope experiment.
 #  
 # exp                    == experiment; meaning one run of the vizgen machines
-#                           that has been output to an MSDIR
+#                           that has been output to an rootDIR
 
 # Database access
 from sqlalchemy import select, update
-from pipeline_manager import MASTER_CONFIG, SESSION, DB_ENGINE
+from ._constants import MASTER_CONFIG, SESSION, DB_ENGINE
 
 # Object declarations
 import os, copy
@@ -26,7 +26,6 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 # -----------------------------------------------------------------------------
 # open config file to build engine URL and connect
-print(os.getcwd())
 master_config = MASTER_CONFIG['Master']
 io_config = MASTER_CONFIG['IO Options']
 
@@ -45,9 +44,9 @@ class Base(DeclarativeBase):
         db_objs: List[cls] = SESSION.scalars(select(cls)).all()
         return db_objs
 
-class MerscopeDirectory(Base):
+class RootDirectory(Base):
 
-    __tablename__ = "merscope_dirs"
+    __tablename__ = "root_dirs"
 
     root: Mapped[str] = mapped_column('root', String(512), nullable=False, primary_key=True)
     tech: Mapped[str] = mapped_column('technology', String(512), nullable=False)
@@ -56,7 +55,7 @@ class MerscopeDirectory(Base):
     # structure handled by mftools 
     raw_dir: Mapped[str] = mapped_column('raw_dir', String(512), nullable=True)
     output_dir: Mapped[str] = mapped_column('output_dir', String(512), nullable=True)
-    experiments = relationship('Experiment', back_populates='msdir_obj')
+    experiments = relationship('Experiment', back_populates='rootdir_obj')
 
     def get_outer_experiments(self, return_obj:bool=False):
         """
@@ -64,7 +63,7 @@ class MerscopeDirectory(Base):
         allow redudency for experiments, as long as they are in different 
         directories.
         """
-        stmt = select(Experiment).where(Experiment.msdir != self.root)
+        stmt = select(Experiment).where(Experiment.rootdir != self.root)
         db_objs: List[Experiment] = SESSION.scalars(stmt).all()
         if return_obj:
             return db_objs
@@ -77,13 +76,15 @@ class Experiment(Base):
     __tablename__ = "experiments" 
     
     exp_id = mapped_column('exp_id', Integer, nullable=False, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column('name', String(128), nullable=False)
-    nname: Mapped[str] = mapped_column('nickname', String(128), nullable=True, default=None)
+    name: Mapped[str] = mapped_column('name', nullable=False)
+    metakey:Mapped[str] = mapped_column('metakey', ForeignKey("metadata.name"), nullable=True)
+    meta: Mapped["Metadata"] = relationship(lazy='joined')
+    nname: Mapped[str] = mapped_column('nickname', nullable=True, default=None)
     # TODO: overhaul the backup system
     backup: Mapped[bool] = mapped_column('redundant', Boolean, nullable=False, default=False)
-    # TODO: rename msdir and all names related to MERSCOPE
-    msdir: Mapped[str] = mapped_column('msdir', String(512),  ForeignKey("merscope_dirs.root"), nullable=False)
-    msdir_obj = relationship("MerscopeDirectory", back_populates="experiments")
+    # TODO: rename rootdir and all names related to MERSCOPE
+    rootdir: Mapped[str] = mapped_column('rootdir', String(512),  ForeignKey("root_dirs.root"), nullable=False)
+    rootdir_obj = relationship("RootDirectory", back_populates="experiments")
     runs: Mapped[int] = relationship("Run", back_populates="parent_experiment",
                                             cascade="all, delete-orphan")
     analysis_path:Mapped[str] = mapped_column('postp_path', String(512), nullable=False, 
@@ -125,14 +126,14 @@ class Experiment(Base):
 
         # --- Configure IO options --- 
         io = conf["IO Options"]
-        ms_dir_obj:MerscopeDirectory = self.msdir_obj
+        ms_dir_obj:RootDirectory = self.rootdir_obj
         
-        io['msdir'] = self.msdir
-        # TODO: Not sure what to do with the 'experiment' field in the config file. Deleting it seems rash, but due to msdir 
+        io['rootdir'] = self.rootdir
+        # TODO: Not sure what to do with the 'experiment' field in the config file. Deleting it seems rash, but due to rootdir 
         # structure it can't meaningfully be represented as an absolute string path which is the whole point of the IO section
-        #io['experiment'] = Path(self.msdir, self.name)
-        io['ms_raw_data'] = str(Path(self.msdir, ms_dir_obj.raw_dir, self.name))
-        io['ms_output'] = str(Path(self.msdir, ms_dir_obj.output_dir, self.name))
+        #io['experiment'] = Path(self.rootdir, self.name)
+        io['ms_raw_data'] = str(Path(self.rootdir, ms_dir_obj.raw_dir, self.name))
+        io['ms_output'] = str(Path(self.rootdir, ms_dir_obj.output_dir, self.name))
         io['analysis_dir'] = str(Path(master_config['analysis_prefix'], self.name))
         io['config'] = str(config_path)
         io['snake'] = str(Path(io['analysis_dir'], 'snakefile'))
@@ -159,6 +160,8 @@ class Metadata(Base):
     __tablename__ = "metadata" 
     
     ExperimentName:Mapped[str] = mapped_column('name', String(128), nullable=False, primary_key=True) # Use this a a foreign key
+    experiments = relationship('Experiment', back_populates='meta')
+
     Invoice:Mapped[str]
     Collaborator:Mapped[str]
     ImagingDate:Mapped[str]
@@ -179,9 +182,9 @@ class Metadata(Base):
     # nname: Mapped[str] = mapped_column('nickname', String(128), nullable=True, default=None)
     # # TODO: overhaul the backup system
     # backup: Mapped[bool] = mapped_column('redundant', Boolean, nullable=False, default=False)
-    # # TODO: rename msdir and all names related to MERSCOPE
-    # msdir: Mapped[str] = mapped_column('msdir', String(512),  ForeignKey("merscope_dirs.root"), nullable=False)
-    # msdir_obj = relationship("MerscopeDirectory", back_populates="experiments")
+    # # TODO: rename rootdir and all names related to MERSCOPE
+    # rootdir: Mapped[str] = mapped_column('rootdir', String(512),  ForeignKey("merscope_dirs.root"), nullable=False)
+    # rootdir_obj = relationship("MerscopeDirectory", back_populates="experiments")
     # runs: Mapped[int] = relationship("Run", back_populates="parent_experiment",
     #                                         cascade="all, delete-orphan")
     # analysis_path:Mapped[str] = mapped_column('postp_path', String(512), nullable=False, 

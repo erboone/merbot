@@ -4,7 +4,7 @@
 # SQLite3 relational database (see table definitions for table schema) 
 #
 # Abreviations for readability:
-# msdir | MSDIR | ms_dir == MERSCOPE directory, the directory we can expect to
+# rootdir | MSDIR | ms_dir == MERSCOPE directory, the directory we can expect to
 #                           find the raw output of a MERscope experiment.
 #  
 #
@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import List
 from glob import glob
 
-from .orm import MerscopeDirectory, Experiment, Run, Metadata, Base
-from .. import MASTER_CONFIG, SESSION, DB_ENGINE
+from .orm import RootDirectory, Experiment, Run, Metadata, Base
+from ._constants import MASTER_CONFIG, SESSION, DB_ENGINE
 
 #=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-
 # create the database using ORM schema defined in "expdb_classes"
@@ -49,7 +49,7 @@ def _initialize_merscope_dirs():
 
 
     
-    db_msdir_objs: List[MerscopeDirectory] = MerscopeDirectory.getallfromDB()
+    db_msdir_objs: List[RootDirectory] = RootDirectory.getallfromDB()
     db_rootdir_paths: list[str] = [dmo.root for dmo in db_msdir_objs]
 
     for ms_path in conf_msdir_paths:
@@ -58,7 +58,7 @@ def _initialize_merscope_dirs():
         else:
             raw_path, out_path = _get_merscope_subdirs(ms_path)
             
-            new_ms_dir = MerscopeDirectory(
+            new_ms_dir = RootDirectory(
                 root=ms_path,
                 tech='MERSCOPE',
                 raw_dir=raw_path,
@@ -75,7 +75,7 @@ def _initialize_merscope_dirs():
         if xen_path in db_rootdir_paths:
             continue
         else:
-            new_xen_dir = MerscopeDirectory(
+            new_xen_dir = RootDirectory(
                 root=xen_path,
                 tech='XENIUM'
             )
@@ -89,7 +89,7 @@ def _initialize_experiments():
     Checks all MERSCOPE directories for new experiments, adds them to the DB
     """
     # Access database loads all MERSCOPE Directory objects into a list
-    db_msdir_objs: List[MerscopeDirectory] = MerscopeDirectory.getallfromDB()
+    db_msdir_objs: List[RootDirectory] = RootDirectory.getallfromDB()
 
     for rootdir_obj in db_msdir_objs:
         db_expir_names = [e.name for e in rootdir_obj.experiments]
@@ -112,16 +112,19 @@ def _initialize_experiments():
         print()
         for new_expir_name in [n for n in found_expir_names 
                                     if n not in db_expir_names]:
-        
-            new_expir_obj = Experiment(
-                name=new_expir_name,
-                msdir=rootdir_obj.root,
-                # Marks redundancy if experimentname exists elsewhere in the database
-                backup=(new_expir_name in db_outer_exp_names)
-            )
-
-            SESSION.add(new_expir_obj)
-            SESSION.commit()
+            try:
+                new_expir_obj = Experiment(
+                    name=new_expir_name,
+                    # TODO: This is a provisional fix. In the future, on loading metadata, search for full name matches to abbrv name in metadata table 
+                    metakey=new_expir_name.split('_')[1],
+                    rootdir=rootdir_obj.root,
+                    # Marks redundancy if experimentname exists elsewhere in the database
+                    backup=(new_expir_name in db_outer_exp_names)
+                )
+                SESSION.add(new_expir_obj)
+                SESSION.commit()
+            except IndexError:
+                continue
 
 
 def _get_merscope_subdirs(path:str):

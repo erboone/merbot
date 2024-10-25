@@ -1,11 +1,9 @@
 #!/usr/bin/env python
-#
 
-# import modules used here -- sys is a very standard one
 import sys, argparse, logging
 from cli.argparser import PARSER
 from cli.pathing import find, update, nname
-from pipeline_manager.expdb import initialize_experiment_db
+from pipeline_manager.initialize import initialize_experiment_db
 
 
 if __name__ == '__main__':

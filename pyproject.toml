@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "merbot"
+version = "0.1"
+dependencies = [
+    "sqlalchemy"
+]
+
+[tool.setuptools]
+packages = ['cli', 'pipeline_manager']

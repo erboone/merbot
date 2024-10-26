@@ -2,7 +2,7 @@ from typing import Any
 
 from sqlalchemy import select, update
 
-from pipeline_manager import access
+from datadispatch import access
 from ._helper import parse_kvpairs
 def find(**kwargs):
     # TODO: Figure out where to put input warnings/errors; here or in the merbot script

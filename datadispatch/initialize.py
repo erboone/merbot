@@ -149,7 +149,7 @@ def _get_merscope_subdirs(path:str):
 def _add_tracking_sheet_metadata():
     # TODO: when initializing, this should pulldown from the google drive, for now, we'll use a local CSV
     # TODO: this shouldn't change to much, so I don't think there is a ton of need to improve past manual implementation
-    CSV_FILE_PATH = 'MERSCOPEExperimentLog.tsv'
+    CSV_FILE_PATH = 'testing/MERSCOPEExperimentLog.tsv'
     connection = DB_ENGINE.connect()
 
     with open(CSV_FILE_PATH, 'r') as metadata_file:

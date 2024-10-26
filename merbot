@@ -3,7 +3,7 @@
 import sys, argparse, logging
 from cli.argparser import PARSER
 from cli.pathing import find, update, nname
-from pipeline_manager.initialize import initialize_experiment_db
+from datadispatch.initialize import initialize_experiment_db
 
 
 if __name__ == '__main__':

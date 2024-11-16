@@ -17,6 +17,7 @@ from glob import glob
 
 from .orm import RootDirectory, Experiment, Run, Metadata, Base
 from ._constants import MASTER_CONFIG, SESSION, DB_ENGINE
+from .pulldown import update_from_gdrive, assemble_metadata_df, clean
 
 #=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-
 # create the database using ORM schema defined in "expdb_classes"
@@ -24,10 +25,12 @@ from ._constants import MASTER_CONFIG, SESSION, DB_ENGINE
 
 def initialize_experiment_db():
 
+    update_from_gdrive()
     _create_database()
-    _initialize_merscope_dirs()
+    _initialize_merfish_dirs()
     _initialize_experiments()
     _add_tracking_sheet_metadata()
+    clean()
 
 #=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-
 # checks all the MERSCOPE directories listed in the config.master.ini file, 
@@ -38,51 +41,35 @@ def _create_database():
     Base.metadata.create_all(DB_ENGINE)
 
 
-def _initialize_merscope_dirs():
+def _initialize_merfish_dirs():
     """
     Parent method to called to fill the database merscope_dirs table
     TODO: Add check to see if msdir_root exists and is accessable
     TODO: Add check/warning if MSDIR has been moved.
     """
-    conf_msdir_paths = json.loads(MASTER_CONFIG.get("Master", "merscope_exp_dirs"))
-    conf_xendir_paths = json.loads(MASTER_CONFIG.get("Master", "xenium_exp_dirs"))
-
-
+    rootdir_locations = [
+        ("MERSCOPE", json.loads(MASTER_CONFIG.get("Master", "merscope_exp_dirs"))),
+        ("SMALL_MERSCOPE", json.loads(MASTER_CONFIG.get("Master", "small_merscope_exp_dirs"))),
+        ("XENIUM", json.loads(MASTER_CONFIG.get("Master", "xenium_exp_dirs")))
+    ]
     
-    db_msdir_objs: List[RootDirectory] = RootDirectory.getallfromDB()
-    db_rootdir_paths: list[str] = [dmo.root for dmo in db_msdir_objs]
+    db_rootdir_objs: List[RootDirectory] = RootDirectory.getallfromDB()
+    db_rootdir_paths: list[str] = [dmo.root for dmo in db_rootdir_objs]
 
-    for ms_path in conf_msdir_paths:
-        if ms_path in db_rootdir_paths:
-            continue
-        else:
-            raw_path, out_path = _get_merscope_subdirs(ms_path)
-            
-            new_ms_dir = RootDirectory(
-                root=ms_path,
-                tech='MERSCOPE',
-                raw_dir=raw_path,
-                output_dir=out_path
-            )
+    for format, pathlist in rootdir_locations:
+        for path in pathlist:
+            if path in db_rootdir_paths:
+                continue
+            else:                
+                new_ms_dir = RootDirectory(
+                    root=path,
+                    format=format,
+                    #raw_dir=raw_path,
+                    #output_dir=out_path
+                )
 
-            SESSION.add(new_ms_dir)
-            SESSION.commit()
-
-    # This was written after the ms ^ above. It is a more efficient 
-    # implementation using glob. In the future I would like this reimplemented
-    # to be unified (for extensibility and maintainence sake) 
-    for xen_path in conf_xendir_paths:
-        if xen_path in db_rootdir_paths:
-            continue
-        else:
-            new_xen_dir = RootDirectory(
-                root=xen_path,
-                tech='XENIUM'
-            )
-
-            SESSION.add(new_xen_dir)
-            SESSION.commit()
-
+                SESSION.add(new_ms_dir)
+                SESSION.commit()
 
 def _initialize_experiments():
     """
@@ -95,28 +82,32 @@ def _initialize_experiments():
         db_expir_names = [e.name for e in rootdir_obj.experiments]
         db_outer_exp_names = rootdir_obj.get_outer_experiments(SESSION)
 
-        match rootdir_obj.tech:
+        # Define different behavior for different technologies
+        pattern = None
+        translator = None # A function that converts an experiment name as it appears on the server to how it appears in metadata
+        match rootdir_obj.format:
             case "MERSCOPE":
                 pattern = f"{rootdir_obj.root}/*data*/*"
+                translator = lambda x: x.split('_')[1]
+
+            case "SMALL_MERSCOPE":
+                pattern = f"{rootdir_obj.root}/*"
+                translator = lambda x: x # Passes without transformation
+
             case "XENIUM":
                 pattern = f"{rootdir_obj.root}/*/*"
-        
+                translator = lambda x: x # Passes without transformation
+
+            case _:
+                raise RuntimeError
+
         found_expir_names = [os.path.basename(path) for path in glob(pattern)]
-        print(f"{rootdir_obj.root}")
-        # print("found: ", found_expir_names)
-        # Iterate over all new experiment names
-        # Note: this implemetation allows for the same experiment name in 
-        # different Merscope Directories
-        print("adding:", end='\n\t')
-        print(*[n for n in found_expir_names if n not in db_expir_names], sep='\n\t')
-        print()
         for new_expir_name in [n for n in found_expir_names 
                                     if n not in db_expir_names]:
             try:
                 new_expir_obj = Experiment(
                     name=new_expir_name,
-                    # TODO: This is a provisional fix. In the future, on loading metadata, search for full name matches to abbrv name in metadata table 
-                    metakey=new_expir_name.split('_')[1],
+                    metakey=translator(new_expir_name),
                     rootdir=rootdir_obj.root,
                     # Marks redundancy if experimentname exists elsewhere in the database
                     backup=(new_expir_name in db_outer_exp_names)
@@ -125,6 +116,13 @@ def _initialize_experiments():
                 SESSION.commit()
             except IndexError:
                 continue
+        
+        # Display all experiments found in root_directory
+        print(f"{rootdir_obj.root} (format: {rootdir_obj.format})")
+        print("adding:", end='\n\t')
+        print(*[n for n in found_expir_names if n not in db_expir_names], sep='\n\t')
+        print()
+
 
 
 def _get_merscope_subdirs(path:str):
@@ -152,35 +150,48 @@ def _add_tracking_sheet_metadata():
     CSV_FILE_PATH = 'testing/MERSCOPEExperimentLog.tsv'
     connection = DB_ENGINE.connect()
 
-    with open(CSV_FILE_PATH, 'r') as metadata_file:
-        # Discard header
-        _ = metadata_file.readline()
+    meta_df = assemble_metadata_df()
+    rows = meta_df.to_dict(orient='records')
 
-        for line in metadata_file.readlines():
-            spl_line = line.split('\t')
-            new_meta_obs = Metadata(
-                ExperimentName = spl_line[0],
-                Invoice = spl_line[1],
-                Collaborator = spl_line[2],
-                ImagingDate = spl_line[3],
-                SampleType = spl_line[4],
-                Codebook = spl_line[5],
-                TargetGenes = spl_line[6],
-                ImgCartridge = spl_line[7],
-                RawDataLocation = spl_line[8],
-                AnalysisLocation = spl_line[9],
-                OutputLocation = spl_line[10],
-                Issues = spl_line[11],
-                AnalyzedBy = spl_line[12],
-                ImagingArea = spl_line[13],
-                RunTime = spl_line[14],
-                SummaryResults = spl_line[15],
-                DescriptionNotes = spl_line[16]
-            )
-            SESSION.add(new_meta_obs)
+    rows_not_included = 0
+    import pandas as pd
+    for row in rows:
+        if pd.isna(row["ExperimentName"]):
+            rows_not_included += 1
+            continue
+
+        new_meta_obs = Metadata(
+            Project = row["Project"],
+            ExperimentName = row["ExperimentName"],
+            SampleID = row["SampleID"],
+            Region = row["Region"],
+            Protocol = row["Protocol"],
+            GenePanel = row["GenePanel"],
+            RIN = row["RIN"],
+            BICANExperimentID = row["BICANExperimentID"],
+            MERFISHExperimentID = row["MERFISHExperimentID"],
+            ExperimentStartDate = row["ExperimentStartDate"],
+            MeanTSCPofRegions = row["MeanTSCPofRegions"],
+            MedianTranscriptperCell = row["MedianTranscriptperCell"],
+            MedianGeneperCell = row["MedianGeneperCell"],
+            Instrument = row["Instrument"],
+            AddNotes = row["AddNotes"],
+            TissueType = row["TissueType"],
+            SampleThickness = row["SampleThickness"],
+            ExperimentSuccess = row["ExperimentSuccess"],
+            VerificationExperimentID = row["VerificationExperimentID"],
+            ImagingDate = row["ImagingDate"],
+            Notes = row["Notes"],
+            Region0 = row["Region0"],
+            Region1 = row["Region1"],
+            Region2 = row["Region2"],
+            Region3 = row["Region3"],
+            MeanofRegions = row["MeanofRegions"],
+        )
+        SESSION.add(new_meta_obs)
     SESSION.commit()
 
-    
+    print(f"{rows_not_included} metadata rows failed validity checks")
 
     # df = pd.read_csv(CSV_FILE_PATH)
     # df.to_sql(name='metadata', if_exists='replace', con=connection)

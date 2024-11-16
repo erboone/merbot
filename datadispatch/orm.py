@@ -13,9 +13,11 @@
 # Database access
 from sqlalchemy import select, update
 from ._constants import MASTER_CONFIG, SESSION, DB_ENGINE
+from .pulldown import assemble_metadata_df
 
 # Object declarations
 import os, copy
+import re
 from pathlib import Path
 from configparser import ConfigParser
 from datetime import datetime
@@ -48,14 +50,12 @@ class RootDirectory(Base):
 
     __tablename__ = "root_dirs"
 
-    root: Mapped[str] = mapped_column('root', String(512), nullable=False, primary_key=True)
-    tech: Mapped[str] = mapped_column('technology', String(512), nullable=False)
+    path: Mapped[str] = mapped_column('root', String(512), nullable=False, primary_key=True)
+    format: Mapped[str] = mapped_column('format', String(512), nullable=False)
     init_dt: Mapped[str] = mapped_column('init_dt', DateTime, nullable=False, default=datetime.now())
     # I've turned these to be nullable. They should be dropped and all dir 
     # structure handled by mftools 
-    raw_dir: Mapped[str] = mapped_column('raw_dir', String(512), nullable=True)
-    output_dir: Mapped[str] = mapped_column('output_dir', String(512), nullable=True)
-    experiments = relationship('Experiment', back_populates='rootdir_obj')
+    experiments:Mapped[List["Experiment"]] = relationship('Experiment', back_populates='root')
 
     def get_outer_experiments(self, return_obj:bool=False):
         """
@@ -82,9 +82,9 @@ class Experiment(Base):
     nname: Mapped[str] = mapped_column('nickname', nullable=True, default=None)
     # TODO: overhaul the backup system
     backup: Mapped[bool] = mapped_column('redundant', Boolean, nullable=False, default=False)
-    # TODO: rename rootdir and all names related to MERSCOPE
-    rootdir: Mapped[str] = mapped_column('rootdir', String(512),  ForeignKey("root_dirs.root"), nullable=False)
-    rootdir_obj = relationship("RootDirectory", back_populates="experiments")
+
+    rootdir: Mapped[str] = mapped_column('rootdir', ForeignKey("root_dirs.root"), nullable=False)
+    root:Mapped["RootDirectory"] = relationship(lazy='joined')
     runs: Mapped[int] = relationship("Run", back_populates="parent_experiment",
                                             cascade="all, delete-orphan")
     analysis_path:Mapped[str] = mapped_column('postp_path', String(512), nullable=False, 
@@ -126,7 +126,7 @@ class Experiment(Base):
 
         # --- Configure IO options --- 
         io = conf["IO Options"]
-        ms_dir_obj:RootDirectory = self.rootdir_obj
+        ms_dir_obj:RootDirectory = self.root
         
         io['rootdir'] = self.rootdir
         # TODO: Not sure what to do with the 'experiment' field in the config file. Deleting it seems rash, but due to rootdir 
@@ -162,41 +162,37 @@ class Metadata(Base):
     ExperimentName:Mapped[str] = mapped_column('name', String(128), nullable=False, primary_key=True) # Use this a a foreign key
     experiments = relationship('Experiment', back_populates='meta')
 
-    Invoice:Mapped[str]
-    Collaborator:Mapped[str]
-    ImagingDate:Mapped[str]
-    SampleType:Mapped[str]
-    Codebook:Mapped[str]
-    TargetGenes:Mapped[str]
-    ImgCartridge:Mapped[str]
-    RawDataLocation:Mapped[str]
-    AnalysisLocation:Mapped[str]
-    OutputLocation:Mapped[str]
-    Issues:Mapped[str]
-    AnalyzedBy:Mapped[str]
-    ImagingArea:Mapped[str]
-    RunTime:Mapped[str]
-    SummaryResults:Mapped[str]
-    DescriptionNotes:Mapped[str]
-
-    # nname: Mapped[str] = mapped_column('nickname', String(128), nullable=True, default=None)
-    # # TODO: overhaul the backup system
-    # backup: Mapped[bool] = mapped_column('redundant', Boolean, nullable=False, default=False)
-    # # TODO: rename rootdir and all names related to MERSCOPE
-    # rootdir: Mapped[str] = mapped_column('rootdir', String(512),  ForeignKey("merscope_dirs.root"), nullable=False)
-    # rootdir_obj = relationship("MerscopeDirectory", back_populates="experiments")
-    # runs: Mapped[int] = relationship("Run", back_populates="parent_experiment",
-    #                                         cascade="all, delete-orphan")
-    # analysis_path:Mapped[str] = mapped_column('postp_path', String(512), nullable=False, 
-    #                                         default=f"{master_config['analysis_prefix']}/{name}")
+    SampleID:Mapped[str] = mapped_column(nullable=True)
+    Region:Mapped[str] = mapped_column(nullable=True)
+    Protocol:Mapped[str] = mapped_column(nullable=True)
+    GenePanel:Mapped[str] = mapped_column(nullable=True)
+    RIN:Mapped[str] = mapped_column(nullable=True)
+    BICANExperimentID:Mapped[str] = mapped_column(nullable=True)
+    MERFISHExperimentID:Mapped[str] = mapped_column(nullable=True)
+    ExperimentStartDate:Mapped[str] = mapped_column(nullable=True)
+    MeanTSCPofRegions:Mapped[str] = mapped_column(nullable=True)
+    MedianTranscriptperCell:Mapped[str] = mapped_column(nullable=True)
+    MedianGeneperCell:Mapped[str] = mapped_column(nullable=True)
+    Instrument:Mapped[str] = mapped_column(nullable=True)
+    AddNotes:Mapped[str] = mapped_column(nullable=True)
+    TissueType:Mapped[str] = mapped_column(nullable=True)
+    SampleThickness:Mapped[str] = mapped_column(nullable=True)
+    ExperimentSuccess:Mapped[str] = mapped_column(nullable=True)
+    VerificationExperimentID:Mapped[str] = mapped_column(nullable=True)
+    ImagingDate:Mapped[str] = mapped_column(nullable=True)
+    Notes:Mapped[str] = mapped_column(nullable=True)
+    Region0:Mapped[str] = mapped_column(nullable=True)
+    Region1:Mapped[str] = mapped_column(nullable=True)
+    Region2:Mapped[str] = mapped_column(nullable=True)
+    Region3:Mapped[str] = mapped_column(nullable=True)
+    MeanofRegions:Mapped[str] = mapped_column(nullable=True)
     
-
-
+    Project:Mapped[str] = mapped_column(nullable=True)
+    
 # TODO: this here      
 # class Reference(Base):
 #     exp_id = mapped_column('ref_id', Integer, nullable=False, primary_key=True, autoincrement=True)
 #     name: Mapped[str] = mapped_column('name', String(128), nullable=False)
-
 
 class Run(Base):
 

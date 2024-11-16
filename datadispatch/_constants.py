@@ -18,7 +18,8 @@ def load_config(config_file:str=CONFIG_PATH) -> ConfigParser:
 
 MASTER_CONFIG = load_config(CONFIG_PATH)
 
-package_dir = f"/home/{getlogin()}/MF_Automated_Pipeline/"
+# TODO: install to a specific directory in root
+package_dir = f"/home/{getlogin()}/merbot/"
 db_path = f"{package_dir}/{MASTER_CONFIG['Master']['experiment_db']}"
 DB_ENGINE = create_engine(f"sqlite:///{db_path}")
 SESSION = Session(DB_ENGINE)

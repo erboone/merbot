@@ -26,7 +26,7 @@ def _sanitize_dict(di:dict):
     
 
 def select(orm_class:str | Base,
-           where:dict,
+           where:str,
            wherelogic:log_opts='and',
            wherecomp:comp_opts='==',
            return_keys=False):
@@ -43,14 +43,18 @@ def select(orm_class:str | Base,
     else:
         raise RuntimeError(f'Issue with typing: \'orm_class\' is {type(orm_class)}')
     
-    where = _sanitize_dict(where)
+    # where = _sanitize_dict(where)
 
-    conditions_s = f' {wherelogic} '.join(
-        ["{} {} {}".format(*[key, wherecomp, val]) for key, val in where.items()]
-    )
-    conditions = eval(conditions_s)
-    
-    stmt = sql.select(orm_object).join(Metadata).where(conditions)
+    # conditions_s = f' {wherelogic} '.join(
+    #     ["{} {} {}".format(*[key, wherecomp, val]) for key, val in where.items()]
+    # )
+    # conditions = eval(conditions_s)
+    conditions = eval(where)
+    print(conditions)
+    print()
+
+    stmt = sql.select(orm_object).join(Metadata).join(RootDirectory).where(conditions)
+    print(stmt)
     found = SESSION.scalars(stmt).all()
     return found
 
@@ -83,4 +87,7 @@ def update(orm_class:str | Base,
         SESSION.commit()
 
 if __name__ == "__main__":
-    update('Experiment', {'name':'this'})
+    # update('Experiment', {'name':'this'})
+    res:list[Experiment] = select('Experiment', 
+                              where="Experiment.rootdir_obj.format == SMALL_MERSCOPE")
+

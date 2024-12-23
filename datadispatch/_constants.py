@@ -1,10 +1,12 @@
-from os import getlogin
+import os 
 from configparser import ConfigParser
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
+PACKAGE_DIR = f"{os.environ['HOME']}/merbot"
+
 # Figure out a way to make sure this points to the right place no matter where it is installed
-CONFIG_PATH = f"/home/{getlogin()}/merbot/config.master.ini"
+CONFIG_PATH = f"{PACKAGE_DIR}/config.master.ini"
 
 # Error messages
 
@@ -19,7 +21,6 @@ def load_config(config_file:str=CONFIG_PATH) -> ConfigParser:
 MASTER_CONFIG = load_config(CONFIG_PATH)
 
 # TODO: install to a specific directory in root
-package_dir = f"/home/{getlogin()}/merbot/"
-db_path = f"{package_dir}/{MASTER_CONFIG['Master']['experiment_db']}"
+db_path = f"{PACKAGE_DIR}/{MASTER_CONFIG['Master']['experiment_db']}"
 DB_ENGINE = create_engine(f"sqlite:///{db_path}")
 SESSION = Session(DB_ENGINE)

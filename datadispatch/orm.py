@@ -22,14 +22,13 @@ from pathlib import Path
 from configparser import ConfigParser
 from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import String, Integer, DateTime, Boolean
+from sqlalchemy import String, Integer, DateTime, Boolean, BLOB
 from sqlalchemy import ForeignKey, Column
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 # -----------------------------------------------------------------------------
 # open config file to build engine URL and connect
 master_config = MASTER_CONFIG['Master']
-io_config = MASTER_CONFIG['IO Options']
 
 # -----------------------------------------------------------------------------
 # Define the objects under the sqlalchemy object relational mapping (ORM) 
@@ -63,7 +62,7 @@ class RootDirectory(Base):
         allow redudency for experiments, as long as they are in different 
         directories.
         """
-        stmt = select(Experiment).where(Experiment.rootdir != self.root)
+        stmt = select(Experiment).where(Experiment.rootdir != self.path)
         db_objs: List[Experiment] = SESSION.scalars(stmt).all()
         if return_obj:
             return db_objs
@@ -85,10 +84,6 @@ class Experiment(Base):
 
     rootdir: Mapped[str] = mapped_column('rootdir', ForeignKey("root_dirs.root"), nullable=False)
     root:Mapped["RootDirectory"] = relationship(lazy='joined')
-    runs: Mapped[int] = relationship("Run", back_populates="parent_experiment",
-                                            cascade="all, delete-orphan")
-    analysis_path:Mapped[str] = mapped_column('postp_path', String(512), nullable=False, 
-                                            default=f"{master_config['analysis_prefix']}/{name}")
 
     @classmethod
     def getallfromDB(cls, 
@@ -194,41 +189,40 @@ class Metadata(Base):
 #     exp_id = mapped_column('ref_id', Integer, nullable=False, primary_key=True, autoincrement=True)
 #     name: Mapped[str] = mapped_column('name', String(128), nullable=False)
 
-class Run(Base):
+class ParamLog(Base):
 
-    __tablename__ = "runs" 
+    __tablename__ = "param_log" 
     
     id: Mapped[int] = mapped_column('id', Integer, nullable=False, primary_key=True, autoincrement=True)
-    exp_name: Mapped[str] = mapped_column('experiment', String(128), ForeignKey("experiments.name"))
-    parent_experiment = relationship("Experiment")
+    runname: Mapped[str] = mapped_column('runname', String, nullable=False)
+    step: Mapped[str] = mapped_column('step', String, nullable=False)
+    hash: Mapped[str] = mapped_column('hash', String, nullable=False)
+    config: Mapped[str] = mapped_column('config', String)
+    used: Mapped[str] = mapped_column('used', DateTime, nullable=False, default=datetime.now())
+    success: Mapped[bool] = mapped_column('success', Boolean, nullable=True, default=False)
 
-    init_dt: Mapped[str] = mapped_column('init_dt', DateTime, nullable=False, default=datetime.now())
+# class Checkpoint(Base):
+#     # TODO: figure out how not to include in db
+#     __tablename__ = "checkpoints_base"
 
-    checkpoints: Mapped[int] = relationship("Checkpoint", back_populates="parent_run",
-                                            cascade="all, delete-orphan")
+#     id: Mapped[int] = mapped_column('chkpt_id', Integer, nullable=False, primary_key=True, autoincrement=True)
+#     run_id: Mapped[int] = mapped_column('run_id', Integer, ForeignKey("runs.id"))
+#     parent_run = relationship("Run")
 
-class Checkpoint(Base):
-    # TODO: figure out how not to include in db
-    __tablename__ = "checkpoints_base"
+#     start: Mapped[DateTime] = mapped_column('start_time', DateTime, nullable=False, default=datetime.now())
+#     end: Mapped[DateTime] = mapped_column('end_time', DateTime, nullable=True, default=None)
+#     complete: Mapped[bool] = mapped_column('complete', Boolean, nullable=False, default=False)
 
-    id: Mapped[int] = mapped_column('chkpt_id', Integer, nullable=False, primary_key=True, autoincrement=True)
-    run_id: Mapped[int] = mapped_column('run_id', Integer, ForeignKey("runs.id"))
-    parent_run = relationship("Run")
+#     # TODO: add relation with before and after checkpoint to automatically create a graph
 
-    start: Mapped[DateTime] = mapped_column('start_time', DateTime, nullable=False, default=datetime.now())
-    end: Mapped[DateTime] = mapped_column('end_time', DateTime, nullable=True, default=None)
-    complete: Mapped[bool] = mapped_column('complete', Boolean, nullable=False, default=False)
+# for sect in MASTER_CONFIG.sections():
+#     c = []
+#     sect_keys = MASTER_CONFIG[sect].keys()
 
-    # TODO: add relation with before and after checkpoint to automatically create a graph
-
-for sect in MASTER_CONFIG.sections():
-    c = []
-    sect_keys = MASTER_CONFIG[sect].keys()
-
-    properties = {}
-    c.append(type(
-        f"checkpoint_{sect}",
-        (Checkpoint,),
-        {key: mapped_column(f"{key}", String(256), nullable=True, default=False) for key in sect_keys}
-    ))
+#     properties = {}
+#     c.append(type(
+#         f"checkpoint_{sect}",
+#         (Checkpoint,),
+#         {key: mapped_column(f"{key}", String(256), nullable=True, default=False) for key in sect_keys}
+#     ))
 

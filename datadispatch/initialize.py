@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import List
 from glob import glob
 
-from .orm import RootDirectory, Experiment, Run, Metadata, Base
+from .orm import RootDirectory, Experiment, ParamLog, Metadata, Base
 from ._constants import MASTER_CONFIG, SESSION, DB_ENGINE
 from .pulldown import update_from_gdrive, assemble_metadata_df, clean
 
@@ -25,10 +25,11 @@ from .pulldown import update_from_gdrive, assemble_metadata_df, clean
 
 def initialize_experiment_db():
 
-    update_from_gdrive()
+    
     _create_database()
     _initialize_merfish_dirs()
     _initialize_experiments()
+    update_from_gdrive()
     _add_tracking_sheet_metadata()
     clean()
 
@@ -54,7 +55,7 @@ def _initialize_merfish_dirs():
     ]
     
     db_rootdir_objs: List[RootDirectory] = RootDirectory.getallfromDB()
-    db_rootdir_paths: list[str] = [dmo.root for dmo in db_rootdir_objs]
+    db_rootdir_paths: list[str] = [dmo.path for dmo in db_rootdir_objs]
 
     for format, pathlist in rootdir_locations:
         for path in pathlist:
@@ -62,7 +63,7 @@ def _initialize_merfish_dirs():
                 continue
             else:                
                 new_ms_dir = RootDirectory(
-                    root=path,
+                    path=path,
                     format=format,
                     #raw_dir=raw_path,
                     #output_dir=out_path
@@ -87,28 +88,32 @@ def _initialize_experiments():
         translator = None # A function that converts an experiment name as it appears on the server to how it appears in metadata
         match rootdir_obj.format:
             case "MERSCOPE":
-                pattern = f"{rootdir_obj.root}/*data*/*"
+                pattern = f"{rootdir_obj.path}/*data*/*"
+                trim=lambda x:os.path.basename(x)
                 translator = lambda x: x.split('_')[1]
 
             case "SMALL_MERSCOPE":
-                pattern = f"{rootdir_obj.root}/*"
-                translator = lambda x: x # Passes without transformation
+                pattern = f"{rootdir_obj.path}/*/region_R*"
+                trim=lambda x: '/'.join(x.split('/')[-2:])
+                translator = lambda x: x.split('/')[0]
 
             case "XENIUM":
-                pattern = f"{rootdir_obj.root}/*/*"
+                pattern = f"{rootdir_obj.path}/*/*"
+                trim=lambda x:os.path.basename(x)
                 translator = lambda x: x # Passes without transformation
 
             case _:
                 raise RuntimeError
 
-        found_expir_names = [os.path.basename(path) for path in glob(pattern)]
+        found_expir_names = [trim(path) for path in glob(pattern)]
+        print(found_expir_names)
         for new_expir_name in [n for n in found_expir_names 
                                     if n not in db_expir_names]:
             try:
                 new_expir_obj = Experiment(
                     name=new_expir_name,
                     metakey=translator(new_expir_name),
-                    rootdir=rootdir_obj.root,
+                    rootdir=rootdir_obj.path,
                     # Marks redundancy if experimentname exists elsewhere in the database
                     backup=(new_expir_name in db_outer_exp_names)
                 )
@@ -118,11 +123,10 @@ def _initialize_experiments():
                 continue
         
         # Display all experiments found in root_directory
-        print(f"{rootdir_obj.root} (format: {rootdir_obj.format})")
+        print(f"{rootdir_obj.path} (format: {rootdir_obj.format})")
         print("adding:", end='\n\t')
         print(*[n for n in found_expir_names if n not in db_expir_names], sep='\n\t')
         print()
-
 
 
 def _get_merscope_subdirs(path:str):
@@ -153,6 +157,7 @@ def _add_tracking_sheet_metadata():
     meta_df = assemble_metadata_df()
     rows = meta_df.to_dict(orient='records')
 
+    meta_df.to_csv('test.tsv', sep='\t')
     rows_not_included = 0
     import pandas as pd
     for row in rows:

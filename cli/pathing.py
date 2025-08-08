@@ -1,5 +1,6 @@
 from typing import Any
-
+from datadispatch.orm import Experiment, SESSION
+import sqlalchemy as sql  
 from sqlalchemy import select, update
 
 from datadispatch import access
@@ -8,24 +9,25 @@ def find(**kwargs):
     # TODO: Figure out where to put input warnings/errors; here or in the merbot script
     search = kwargs['name']
     verbose = kwargs['verbose']
+    stmt = sql.select(Experiment)
+    found = SESSION.scalars(stmt).all()
 
-    found_exp = access.select(
-        'Experiment',
-        where={
-            'Experiment.name':search,
-            'Experiment.nname':search},
-        wherelogic='or'
-    )
-    if len(found_exp) < 1:
-        raise RuntimeError(f"Search of \'{search}\' did not find any experiments")
+    foundexperiments = []
+    for i in found:
+        if i.name and search in i.name:
+            foundexperiments.append(i)
+        elif i.nname and search in i.nname:
+            foundexperiments.append(i)
+    if len(foundexperiments) < 1:
+        raise RuntimeError(f"Search of '{search}' did not find any experiments matching that pattern")
 
     # TODO: think of some sort of CLI option that prints but returns a list 
     # otherwise 
-    print(f'Search of \'{search}\' found:')
-    for exp in found_exp:
+    print(f'Search of \'{search}\' found')
+    for exp in foundexperiments:
         print(
             # TODO: format this into a nice table
-            f"{exp.nname}\t{exp.name}\t{exp.msdir}"
+            f"{exp.nname}\t{exp.name}\t{exp.rootdir}"
         )
 
 def update(**kwargs):

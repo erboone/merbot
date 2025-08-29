@@ -6,16 +6,21 @@ import requests as rq
 import os
 
 from ._constants import PACKAGE_DIR
+from ._constants import METADATA_PATH, BICAN_TRACK_SHEET_PATH, MERSCOPE_EXP_LOG_PATH, SENNET_TRACK_SHEET_PATH
 
 FILES = {
-    'MERSCOPE_Experiment_Log':'1y4hMpNBlWS9NtRDEXgynG2cLaEwy042auDAIkfZrjRg',
-    'BICAN_Tracking_Sheet':'1DyzSwODaJHShu8GeGQxIScV58_ZBmL8eX2KSUgQ5-Tc',
-    'SenNet_Tracking_Sheet':'1SkoJJdWcr1hsZvgB_vBNyunmaMd4dKWmBSoq_EHuni8' 
+    MERSCOPE_EXP_LOG_PATH:'1y4hMpNBlWS9NtRDEXgynG2cLaEwy042auDAIkfZrjRg',
+    BICAN_TRACK_SHEET_PATH:'1DyzSwODaJHShu8GeGQxIScV58_ZBmL8eX2KSUgQ5-Tc',
+    SENNET_TRACK_SHEET_PATH:'1SkoJJdWcr1hsZvgB_vBNyunmaMd4dKWmBSoq_EHuni8' 
 }
 
 # Params for google api call
 DEFAULT_MIME = 'text/tab-separated-values',
-KEY = 'AIzaSyAvpoJRM46FmmUh08DKjoGzTFKvjZAIHvY'
+try:
+    KEY = open('/home/erboone/merbot/datadispatch/pulldownkey.txt', 'r').readline()
+except FileNotFoundError as e:
+    raise FileNotFoundError("Missing the key file. Contact Eric Boone (503-962-0683) RE: accessing the PLT3 google drive API")
+
 # KEY = os.environ['GOOG_API_KEY']
 
 
@@ -30,8 +35,7 @@ def update_from_gdrive():
     
     for file in FILES.keys():
         resp = _pull_file_from_drive(file)
-        filepath = f"{PACKAGE_DIR}/datadispatch/metadata/{file}.tsv"
-        with open(filepath, 'wb') as o:
+        with open(file, 'wb') as o:
             o.write(resp.content)
 
 def _pull_file_from_drive(
@@ -70,8 +74,8 @@ def _helper_generate_metanames(current_col_names:iter, p=False):
 def assemble_metadata_df() -> pd.DataFrame:
     meta_path = f"{PACKAGE_DIR}/datadispatch/metadata"
     METADATA_PATHS = [
-        ('BICAN', f"{meta_path}/BICAN_Tracking_Sheet.tsv"),
-        ('SenNet', f"{meta_path}/SenNet_Tracking_Sheet.tsv"),
+        ('BICAN', BICAN_TRACK_SHEET_PATH),
+        ('SenNet', SENNET_TRACK_SHEET_PATH),
     ]
 
     meta_dfs = []

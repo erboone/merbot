@@ -1,6 +1,7 @@
 import sqlalchemy as sql  
 from typing import Literal
 from warnings import warn
+import re
 
 from ._constants import SESSION
 from .orm import Base, RootDirectory, Experiment, Metadata, ParamLog
@@ -40,7 +41,8 @@ def select(orm_class:str | Base,
     orm_object = _prep_orm_object(orm_class, return_keys)    
     conditions = eval(where)
 
-    stmt = sql.select(orm_object).join(Metadata).join(RootDirectory).where(conditions)
+    #TODO: need to improve this join so that it is more robust in the case we don't have metadata for any Experiments
+    stmt = sql.select(orm_object).join(Metadata, isouter=True).join(RootDirectory).where(conditions)
     # print(stmt)
     found = SESSION.scalars(stmt).all()
     return found
@@ -76,12 +78,32 @@ def add(obj):
 def commit():
     SESSION.commit()
 
+
+# Quick access
+def size(orm_class:str|Base):
+    return SESSION.query(
+        sql.column(
+            f"{_orm_tablename(orm_class)}.id")
+            ).count()
+
+def abridged(orm_class:str|Base):
+    stmt = sql.select(
+        sql.column('name'),
+        sql.column('rootdir')
+    ).select_from(orm_class)
+        
+    return SESSION.execute(stmt)    
+
+
+
 if __name__ == "__main__":
     # update('Experiment', {'name':'this'})
 
-    stmt = sql.insert(ParamLog).values(**{
-            'runname': b'test',
-            'step': 'test',
-            'hash': '00000000',
-            'config': 'test'
-        })
+    # stmt = sql.insert(ParamLog).values(**{
+    #         'runname': b'test',
+    #         'step': 'test',
+    #         'hash': '00000000',
+    #         'config': 'test'
+    #     })
+
+    size("Experiment")

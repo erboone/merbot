@@ -14,6 +14,8 @@ import json
 from pathlib import Path
 from typing import List
 from glob import glob
+from sqlite3 import IntegrityError
+import csv
 
 from .orm import RootDirectory, Experiment, ParamLog, Metadata, Base
 from ._constants import MASTER_CONFIG, SESSION, DB_ENGINE
@@ -29,6 +31,7 @@ def initialize_experiment_db():
     _create_database()
     _initialize_merfish_dirs()
     _initialize_experiments()
+    _write_to_csv("/data/_MERSCOPE/experiments.csv")
     update_from_gdrive()
     _add_tracking_sheet_metadata()
     clean()
@@ -80,7 +83,7 @@ def _initialize_experiments():
     db_msdir_objs: List[RootDirectory] = RootDirectory.getallfromDB()
 
     for rootdir_obj in db_msdir_objs:
-        db_expir_names = [e.name for e in rootdir_obj.experiments]
+        db_expir_names = [e.namereg for e in rootdir_obj.experiments]
         db_outer_exp_names = rootdir_obj.get_outer_experiments(SESSION)
 
         # Define different behavior for different technologies
@@ -88,30 +91,31 @@ def _initialize_experiments():
         translator = None # A function that converts an experiment name as it appears on the server to how it appears in metadata
         match rootdir_obj.format:
             case "MERSCOPE":
-                pattern = f"{rootdir_obj.path}/*data*/*"
-                trim=lambda x:os.path.basename(x)
-                translator = lambda x: x.split('_')[1]
+                pattern = f"{rootdir_obj.path}/*output*/*/region_*"
+                trim=lambda x: "/".join(x.parts[-2:])
+                translator = lambda x: str(x).split('_')[1]
 
             case "SMALL_MERSCOPE":
-                pattern = f"{rootdir_obj.path}/*/region_R*"
-                trim=lambda x: '/'.join(x.split('/')[-2:])
-                translator = lambda x: x.split('/')[0]
+                pattern = f"{rootdir_obj.path}/*/region_*"
+                trim=lambda x: "/".join(x.parts[-2:])
+                translator = lambda x: str(x).split('/')[0]
 
             case "XENIUM":
                 pattern = f"{rootdir_obj.path}/*/*"
-                trim=lambda x:os.path.basename(x)
-                translator = lambda x: x # Passes without transformation
+                trim=lambda x: "/".join(x.parts[-2:])
+                translator = lambda x: str(x) # Passes without transformation
 
             case _:
                 raise RuntimeError
 
-        found_expir_names = [trim(path) for path in glob(pattern)]
-        print(found_expir_names)
-        for new_expir_name in [n for n in found_expir_names 
+        found_expir_names = [trim(Path(path)) for path in glob(pattern)]
+        # print(found_expir_names)
+        for new_expir_name in [Path(n) for n in found_expir_names 
                                     if n not in db_expir_names]:
             try:
                 new_expir_obj = Experiment(
-                    name=new_expir_name,
+                    name=str(new_expir_name.parent),
+                    region=str(new_expir_name.name),
                     metakey=translator(new_expir_name),
                     rootdir=rootdir_obj.path,
                     # Marks redundancy if experimentname exists elsewhere in the database
@@ -128,6 +132,13 @@ def _initialize_experiments():
         print(*[n for n in found_expir_names if n not in db_expir_names], sep='\n\t')
         print()
 
+def _write_to_csv(path:str|Path):
+    outfile = open(path, 'w')
+    outcsv = csv.writer(outfile)
+    records = SESSION.query(Experiment).all()
+    [outcsv.writerow([getattr(curr, column) for column in ['name', 'rootdir']]) for curr in records]
+
+    outfile.close()
 
 def _get_merscope_subdirs(path:str):
     req_subdirs = ['data', 'output']
@@ -157,46 +168,48 @@ def _add_tracking_sheet_metadata():
     meta_df = assemble_metadata_df()
     rows = meta_df.to_dict(orient='records')
 
-    meta_df.to_csv('test.tsv', sep='\t')
-    rows_not_included = 0
+    rows_not_included = []
     import pandas as pd
     for row in rows:
         if pd.isna(row["ExperimentName"]):
-            rows_not_included += 1
+            # rows_not_included.append(row)
             continue
+        try:
+            new_meta_obs = Metadata(
+                Project = row["Project"],
+                ExperimentName = row["ExperimentName"],
+                SampleID = row["SampleID"],
+                Region = row["Region"],
+                Protocol = row["Protocol"],
+                GenePanel = row["GenePanel"],
+                # RIN = row["RIN"],
+                BICANExperimentID = row["BICANExperimentID"],
+                MERFISHExperimentID = row["MERFISHExperimentID"],
+                ExperimentStartDate = row["ExperimentStartDate"],
+                # MeanTSCPofRegions = row["MeanTSCPofRegions"],
+                # MedianTranscriptperCell = row["MedianTranscriptperCell"],
+                # MedianGeneperCell = row["MedianGeneperCell"],
+                Instrument = row["Instrument"],
+                # AddNotes = row["AddNotes"],
+                TissueType = row["TissueType"],
+                SampleThickness = row["SampleThickness"],
+                ExperimentSuccess = row["ExperimentSuccess"],
+                VerificationExperimentID = row["VerificationExperimentID"],
+                ImagingDate = row["ImagingDate"],
+                Notes = row["Notes"],
+                Region0 = row["Region0"],
+                Region1 = row["Region1"],
+                Region2 = row["Region2"],
+                Region3 = row["Region3"],
+                MeanofRegions = row["MeanofRegions"],
+            )
+            SESSION.add(new_meta_obs)
+            SESSION.commit()
+        except:
+            SESSION.reset()
+            rows_not_included.append(row)
 
-        new_meta_obs = Metadata(
-            Project = row["Project"],
-            ExperimentName = row["ExperimentName"],
-            SampleID = row["SampleID"],
-            Region = row["Region"],
-            Protocol = row["Protocol"],
-            GenePanel = row["GenePanel"],
-            RIN = row["RIN"],
-            BICANExperimentID = row["BICANExperimentID"],
-            MERFISHExperimentID = row["MERFISHExperimentID"],
-            ExperimentStartDate = row["ExperimentStartDate"],
-            MeanTSCPofRegions = row["MeanTSCPofRegions"],
-            MedianTranscriptperCell = row["MedianTranscriptperCell"],
-            MedianGeneperCell = row["MedianGeneperCell"],
-            Instrument = row["Instrument"],
-            AddNotes = row["AddNotes"],
-            TissueType = row["TissueType"],
-            SampleThickness = row["SampleThickness"],
-            ExperimentSuccess = row["ExperimentSuccess"],
-            VerificationExperimentID = row["VerificationExperimentID"],
-            ImagingDate = row["ImagingDate"],
-            Notes = row["Notes"],
-            Region0 = row["Region0"],
-            Region1 = row["Region1"],
-            Region2 = row["Region2"],
-            Region3 = row["Region3"],
-            MeanofRegions = row["MeanofRegions"],
-        )
-        SESSION.add(new_meta_obs)
-    SESSION.commit()
-
-    print(f"{rows_not_included} metadata rows failed validity checks")
+    print(f"Metadata rows that failed validity checks:\n{rows_not_included}")
 
     # df = pd.read_csv(CSV_FILE_PATH)
     # df.to_sql(name='metadata', if_exists='replace', con=connection)

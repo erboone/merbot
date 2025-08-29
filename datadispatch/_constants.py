@@ -10,6 +10,7 @@ CONFIG_PATH = f"{PACKAGE_DIR}/config.master.ini"
 
 # Error messages
 
+## Config handling
 def load_config(config_file:str=CONFIG_PATH) -> ConfigParser:
     config = ConfigParser()
     with open(config_file, "r") as conf_file_conn:
@@ -20,7 +21,14 @@ def load_config(config_file:str=CONFIG_PATH) -> ConfigParser:
 
 MASTER_CONFIG = load_config(CONFIG_PATH)
 
+## Create global session
 # TODO: install to a specific directory in root
 db_path = f"{PACKAGE_DIR}/{MASTER_CONFIG['Master']['experiment_db']}"
 DB_ENGINE = create_engine(f"sqlite:///{db_path}")
 SESSION = Session(DB_ENGINE)
+
+## Important paths
+METADATA_PATH = '/'.join([PACKAGE_DIR, "datadispatch", "metadata"])
+BICAN_TRACK_SHEET_PATH = '/'.join([METADATA_PATH, 'BICAN_Tracking_Sheet.tsv'])
+MERSCOPE_EXP_LOG_PATH = '/'.join([METADATA_PATH, 'MERSCOPE_Experiment_Log.tsv'])
+SENNET_TRACK_SHEET_PATH = '/'.join([METADATA_PATH, 'SenNet_Tracking_Sheet.tsv'])

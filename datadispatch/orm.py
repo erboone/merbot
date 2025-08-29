@@ -49,7 +49,8 @@ class RootDirectory(Base):
 
     __tablename__ = "root_dirs"
 
-    path: Mapped[str] = mapped_column('root', String(512), nullable=False, primary_key=True)
+    id = mapped_column('id', Integer, nullable=False, primary_key=True, autoincrement=True)
+    path: Mapped[str] = mapped_column('root', String(512), nullable=False, unique=True)
     format: Mapped[str] = mapped_column('format', String(512), nullable=False)
     init_dt: Mapped[str] = mapped_column('init_dt', DateTime, nullable=False, default=datetime.now())
     # I've turned these to be nullable. They should be dropped and all dir 
@@ -74,8 +75,9 @@ class Experiment(Base):
 
     __tablename__ = "experiments" 
     
-    exp_id = mapped_column('exp_id', Integer, nullable=False, primary_key=True, autoincrement=True)
+    id = mapped_column('id', Integer, nullable=False, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column('name', nullable=False)
+    region: Mapped[str] = mapped_column('region', nullable=False)
     metakey:Mapped[str] = mapped_column('metakey', ForeignKey("metadata.name"), nullable=True)
     meta: Mapped["Metadata"] = relationship(lazy='joined')
     nname: Mapped[str] = mapped_column('nickname', nullable=True, default=None)
@@ -107,6 +109,14 @@ class Experiment(Base):
 
         return db_objs
     
+    @property
+    def namereg(self):
+        return self.name + "/" + self.region
+    
+    @property
+    def BICANID(self):
+        return re.search('Ren[0-9]{2,4}', self.name)[0]
+
     def has_nname(self) -> bool: return self.nname is not None
     
     # def set_nname(self, new_nname:str, session:Session) -> None
@@ -148,28 +158,28 @@ class Experiment(Base):
         return conf
     
     def __repr__(self):
-        class_info = "%10s\t%10s" % (self.name, [self.runs])
+        class_info = "%10s\t%10s" % (self.name, self.rootdir)
         return class_info
 
 class Metadata(Base):
     __tablename__ = "metadata" 
     
-    ExperimentName:Mapped[str] = mapped_column('name', String(128), nullable=False, primary_key=True) # Use this a a foreign key
+    ExperimentName:Mapped[str] = mapped_column('name', String(128), nullable=False, primary_key=True) # Use this as a foreign key
     experiments = relationship('Experiment', back_populates='meta')
 
     SampleID:Mapped[str] = mapped_column(nullable=True)
     Region:Mapped[str] = mapped_column(nullable=True)
     Protocol:Mapped[str] = mapped_column(nullable=True)
     GenePanel:Mapped[str] = mapped_column(nullable=True)
-    RIN:Mapped[str] = mapped_column(nullable=True)
+    # RIN:Mapped[str] = mapped_column(nullable=True)
     BICANExperimentID:Mapped[str] = mapped_column(nullable=True)
     MERFISHExperimentID:Mapped[str] = mapped_column(nullable=True)
     ExperimentStartDate:Mapped[str] = mapped_column(nullable=True)
-    MeanTSCPofRegions:Mapped[str] = mapped_column(nullable=True)
-    MedianTranscriptperCell:Mapped[str] = mapped_column(nullable=True)
-    MedianGeneperCell:Mapped[str] = mapped_column(nullable=True)
+    # MeanTSCPofRegions:Mapped[str] = mapped_column(nullable=True)
+    # MedianTranscriptperCell:Mapped[str] = mapped_column(nullable=True)
+    # MedianGeneperCell:Mapped[str] = mapped_column(nullable=True)
     Instrument:Mapped[str] = mapped_column(nullable=True)
-    AddNotes:Mapped[str] = mapped_column(nullable=True)
+    # AddNotes:Mapped[str] = mapped_column(nullable=True)
     TissueType:Mapped[str] = mapped_column(nullable=True)
     SampleThickness:Mapped[str] = mapped_column(nullable=True)
     ExperimentSuccess:Mapped[str] = mapped_column(nullable=True)
@@ -186,7 +196,7 @@ class Metadata(Base):
     
 # TODO: this here      
 # class Reference(Base):
-#     exp_id = mapped_column('ref_id', Integer, nullable=False, primary_key=True, autoincrement=True)
+#     id = mapped_column('ref_id', Integer, nullable=False, primary_key=True, autoincrement=True)
 #     name: Mapped[str] = mapped_column('name', String(128), nullable=False)
 
 class ParamLog(Base):
@@ -200,6 +210,15 @@ class ParamLog(Base):
     config: Mapped[str] = mapped_column('config', String)
     used: Mapped[str] = mapped_column('used', DateTime, nullable=False, default=datetime.now())
     success: Mapped[bool] = mapped_column('success', Boolean, nullable=True, default=False)
+    
+
+# class ReferenceLog(Base):
+
+#     __tablename__ = "reference"
+    
+#     id: Mapped[int] = mapped_column('id', Integer, nullable=False, primary_key=True, autoincrement=True)
+#     code: Mapped[str] = mapped_column('code', str, nullable=False, , autoincrement=True)
+
 
 # class Checkpoint(Base):
 #     # TODO: figure out how not to include in db

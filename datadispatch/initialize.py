@@ -14,8 +14,9 @@ import json
 from pathlib import Path
 from typing import List
 from glob import glob
+from sqlalchemy import select
 
-from .orm import RootDirectory, Experiment, ParamLog, Metadata, Base
+from .orm import RootDirectory, Experiment, ParamLog, Metadata, Base, Statistics
 from ._constants import MASTER_CONFIG, SESSION, DB_ENGINE
 from .pulldown import update_from_gdrive, assemble_metadata_df, clean
 
@@ -23,14 +24,20 @@ from .pulldown import update_from_gdrive, assemble_metadata_df, clean
 # create the database using ORM schema defined in "expdb_classes"
 # Fill with specified Merscope directories, and check for new experiments.
 
-def initialize_experiment_db():
+def initialize_experiment_db(**kwargs):
+    updatechecker = kwargs['update']
 
-    
     _create_database()
     _initialize_merfish_dirs()
     _initialize_experiments()
-    update_from_gdrive()
-    _add_tracking_sheet_metadata()
+    _initialize_statistics()
+
+    if updatechecker == True:
+        try:
+            update_from_gdrive()
+            _add_tracking_sheet_metadata()
+        except:
+            print("Updating Metadata files did not work, using existing ones")
     clean()
 
 #=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-
@@ -208,6 +215,18 @@ def _add_tracking_sheet_metadata():
     #     cursor.execute(cmd, f)
     #     conn.commit()
 
+def _initialize_statistics():
+    experiments = SESSION.scalars(select(Experiment)).all()
+    for exp in experiments:
+        exists = SESSION.scalars(
+            select(Statistics).where(Statistics.exp_id == exp.exp_id, Statistics.name == exp.name)).first()
+        if exists:
+            continue
+        
+        stats = Statistics(exp_id=exp.exp_id, name=exp.name, statisticsData=b"{}")
+        SESSION.add(stats)
+
+    SESSION.commit()
 
 if __name__ == "__main__":
     initialize_experiment_db()

@@ -11,7 +11,7 @@
 #                           that has been output to an rootDIR
 
 # Database access
-from sqlalchemy import select, update
+from sqlalchemy import select, update, LargeBinary
 from ._constants import MASTER_CONFIG, SESSION, DB_ENGINE
 from .pulldown import assemble_metadata_df
 
@@ -225,4 +225,11 @@ class ParamLog(Base):
 #         (Checkpoint,),
 #         {key: mapped_column(f"{key}", String(256), nullable=True, default=False) for key in sect_keys}
 #     ))
+
+class Statistics(Base):
+    __tablename__ = "statistics"
+    exp_id: Mapped[int] = mapped_column("exp_id", ForeignKey("experiments.exp_id"), primary_key=True)
+    name: Mapped[str] = mapped_column('name', primary_key=True)
+    statisticsData : Mapped[bytes] = mapped_column("statisticsData", LargeBinary, nullable=False)
+    experiment : Mapped["Experiment"] = relationship("Experiment", backref="statistics")
 

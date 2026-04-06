@@ -27,7 +27,7 @@ if __name__ == '__main__':
             pass
         case 'init':
             # TODO: wrap this please
-            initialize_experiment_db()
+            initialize_experiment_db(update=args.update)
 
 
 

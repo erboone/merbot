@@ -73,8 +73,14 @@ nname.add_argument('nickname',
 # ----- Database subcommands -----
 
 # initialize
-nname:Parser = subparser.add_parser('init',
+init:Parser = subparser.add_parser('init',
     help='creates database'
+)
+
+init.add_argument(
+    '--update',
+    action='store_true',
+    help='Update or not'
 )
 
 # refresh

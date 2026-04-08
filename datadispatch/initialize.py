@@ -30,6 +30,7 @@ def initialize_experiment_db(**kwargs):
     _create_database()
     _initialize_merfish_dirs()
     _initialize_experiments()
+    _fillInSpatialDataDirColumn()
     _initialize_statistics()
 
     if updatechecker == True:
@@ -134,6 +135,17 @@ def _initialize_experiments():
         print("adding:", end='\n\t')
         print(*[n for n in found_expir_names if n not in db_expir_names], sep='\n\t')
         print()
+
+def _fillInSpatialDataDirColumn():
+    spatialDataRoots = json.loads(MASTER_CONFIG.get("Master", "spatial_objects_dirs"))
+    allExperiments = SESSION.scalars(select(Experiment)).all()
+
+    for dir in spatialDataRoots:
+        for experiment in allExperiments:
+            spatPath = Path(dir) / experiment.name
+            if spatPath.exists():
+                experiment.spatialDataRoot = dir
+    SESSION.commit()
 
 
 def _get_merscope_subdirs(path:str):

@@ -85,6 +85,8 @@ class Experiment(Base):
     rootdir: Mapped[str] = mapped_column('rootdir', ForeignKey("root_dirs.root"), nullable=False)
     root:Mapped["RootDirectory"] = relationship(lazy='joined')
 
+    spatialDataRoot : Mapped[str] = mapped_column('spatialDataRootDir', String, nullable=True)
+
     @classmethod
     def getallfromDB(cls, 
                      incl_original:bool=True,  

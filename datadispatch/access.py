@@ -42,7 +42,7 @@ def select(orm_class:str | Base,
     conditions = eval(where)
 
     #TODO: need to improve this join so that it is more robust in the case we don't have metadata for any Experiments
-    stmt = sql.select(orm_object).join(Metadata, isouter=True).join(RootDirectory).where(conditions)
+    stmt = sql.select(orm_object).join(RootDirectory).where(conditions) #.join(Metadata, isouter=True) 
     # print(stmt)
     found = SESSION.scalars(stmt).all()
     return found

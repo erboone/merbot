@@ -104,8 +104,6 @@ def assemble_metadata_df() -> pd.DataFrame:
     final_df.reset_index(inplace=True)
     final_df.drop('level_0', axis=1, inplace=True)
     print(final_df)
-
-
     
     return final_df
 

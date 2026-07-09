@@ -249,7 +249,7 @@ class ParamLog(Base):
 
 class Statistics(Base):
     __tablename__ = "statistics"
-    exp_id: Mapped[int] = mapped_column("exp_id", ForeignKey("experiments.exp_id"), primary_key=True)
+    exp_id: Mapped[int] = mapped_column("exp_id", ForeignKey("experiments.id"), primary_key=True)
     name: Mapped[str] = mapped_column('name', primary_key=True)
     statisticsData : Mapped[bytes] = mapped_column("statisticsData", LargeBinary, nullable=False)
     experiment : Mapped["Experiment"] = relationship("Experiment", backref="statistics")

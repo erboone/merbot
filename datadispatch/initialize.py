@@ -243,11 +243,11 @@ def _initialize_statistics():
     experiments = SESSION.scalars(select(Experiment)).all()
     for exp in experiments:
         exists = SESSION.scalars(
-            select(Statistics).where(Statistics.exp_id == exp.exp_id, Statistics.name == exp.name)).first()
+            select(Statistics).where(Statistics.exp_id == exp.id, Statistics.name == exp.name)).first()
         if exists:
             continue
         
-        stats = Statistics(exp_id=exp.exp_id, name=exp.name, statisticsData=b"{}")
+        stats = Statistics(exp_id=exp.id, name=exp.name, statisticsData=b"{}")
         SESSION.add(stats)
 
     SESSION.commit()

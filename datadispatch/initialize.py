@@ -16,8 +16,9 @@ from typing import List
 from glob import glob
 from sqlite3 import IntegrityError
 import csv
+from sqlalchemy import select
 
-from .orm import RootDirectory, Experiment, ParamLog, Metadata, Base
+from .orm import RootDirectory, Experiment, ParamLog, Metadata, Base, Statistics
 from ._constants import MASTER_CONFIG, SESSION, DB_ENGINE
 from .pulldown import update_from_gdrive, assemble_metadata_df, clean
 
@@ -25,15 +26,21 @@ from .pulldown import update_from_gdrive, assemble_metadata_df, clean
 # create the database using ORM schema defined in "expdb_classes"
 # Fill with specified Merscope directories, and check for new experiments.
 
-def initialize_experiment_db():
+def initialize_experiment_db(**kwargs):
+    updatechecker = kwargs['update']
 
-    
     _create_database()
     _initialize_merfish_dirs()
     _initialize_experiments()
-    _write_to_csv("/data/_MERSCOPE/experiments.csv")
-    update_from_gdrive()
-    _add_tracking_sheet_metadata()
+    _fillInSpatialDataDirColumn()
+    _initialize_statistics()
+
+    if updatechecker == True:
+        try:
+            update_from_gdrive()
+            _add_tracking_sheet_metadata()
+        except:
+            print("Updating Metadata files did not work, using existing ones")
     clean()
 
 #=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-=#=-
@@ -139,6 +146,17 @@ def _write_to_csv(path:str|Path):
     [outcsv.writerow([getattr(curr, column) for column in ['name', 'rootdir']]) for curr in records]
 
     outfile.close()
+def _fillInSpatialDataDirColumn():
+    spatialDataRoots = json.loads(MASTER_CONFIG.get("Master", "spatial_objects_dirs"))
+    allExperiments = SESSION.scalars(select(Experiment)).all()
+
+    for dir in spatialDataRoots:
+        for experiment in allExperiments:
+            spatPath = Path(dir) / experiment.name
+            if spatPath.exists():
+                experiment.spatialDataRoot = dir
+    SESSION.commit()
+
 
 def _get_merscope_subdirs(path:str):
     req_subdirs = ['data', 'output']
@@ -221,6 +239,18 @@ def _add_tracking_sheet_metadata():
     #     cursor.execute(cmd, f)
     #     conn.commit()
 
+def _initialize_statistics():
+    experiments = SESSION.scalars(select(Experiment)).all()
+    for exp in experiments:
+        exists = SESSION.scalars(
+            select(Statistics).where(Statistics.exp_id == exp.exp_id, Statistics.name == exp.name)).first()
+        if exists:
+            continue
+        
+        stats = Statistics(exp_id=exp.exp_id, name=exp.name, statisticsData=b"{}")
+        SESSION.add(stats)
+
+    SESSION.commit()
 
 if __name__ == "__main__":
     initialize_experiment_db()
